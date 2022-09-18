@@ -1,9 +1,9 @@
 const net = require("net");
 const {handleUser,handlePassword} = require("./authorization.js");
-const {handleNlist} = require("./list.js");
+const {handleNlist,handleList,emptyFiles} = require("./list.js");
+const {handleCwd,handleMkd,handlePwd,handleRmd} = require("./dirOperations.js");
 var command = null;
 var args = [];
-var connectedUser = null;
 class FtpServer{
     constructor(){
         this.remotePort = null;
@@ -12,9 +12,10 @@ class FtpServer{
         this.localAddress = "localhost";
         this.userDetails = [];
     }
-
+    
     initiateFtpServer(){
         const ftpServer = net.createServer((ftpSocket)=>{
+            var connectedUser = null;
             ftpSocket.write("220 Service ready for new user\r\n")
             ftpSocket.on("connect",()=>{
             })
@@ -56,11 +57,67 @@ class FtpServer{
                         args = [];
                         break;
                     }
+                    case "LIST":{
+                        handleList(ftpSocket,args,connectedUser,this.remoteAddress,this.remotePort);
+                        command = null;
+                        args = [];
+                        break;
+                    }
+                    case "PWD":{
+                        handlePwd(ftpSocket,args,connectedUser);
+                        command = null;
+                        args = [];
+                        break;
+                    }
+                    case "CWD":{
+                        handleCwd(ftpSocket,args,connectedUser);
+                        command = null;
+                        args = [];
+                        break;
+                    }
+                    case "MKD":{
+                        handleMkd(ftpSocket,args,connectedUser);
+                        command = null;
+                        args = [];
+                        break;
+                    }
+                    case "XMKD":{
+                        handleMkd(ftpSocket,args,connectedUser);
+                        command = null;
+                        args = [];
+                        break;
+                    }
+                    case "RMD":{
+                        handleRmd(ftpSocket,args,connectedUser);
+                        command = null;
+                        args = [];
+                        break;
+                    }
+                    case "XRMD":{
+                        handleRmd(ftpSocket,args,connectedUser);
+                        command = null;
+                        args = [];
+                        break;
+                    }
                     case "OPTS":{
                         ftpSocket.write("200 Always in UTF8 mode\r\n");
                         break;
                     }
+                    case "REIN":{
+                        if(args.length){
+                            ftpSocket.write("500 Syntax error, command unrecognized\r\n");
+                            break;
+                        }
+                        ftpSocket.end("221 Service closing control connection");
+                        break;
+                    }
                     case "QUIT":{
+                        if(args.length){
+                            ftpSocket.write("500 Syntax error, command unrecognized\r\n");
+                            break;
+                        }
+                        emptyFiles(connectedUser);
+                        connectedUser = null;
                         ftpSocket.end("221 Service closing control connection");
                         break;
                     }
@@ -87,5 +144,5 @@ class FtpServer{
 
 
 let s = new FtpServer();
-s.userDetails = [{name:"abc",password:"123",pwd:"E://project/ftp-for-node"}]
+s.userDetails = [{name:"abc",password:"123",pwd:"E://project/ftp-for-node"},{name:"def",password:"456",pwd:"E://project"}]
 s.initiateFtpServer();

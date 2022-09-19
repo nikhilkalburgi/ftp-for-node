@@ -58,7 +58,17 @@ function handleRmd(ftpSocket,args,connectedUser){
    }
 }
 
+function handleCdup(ftpSocket,args,connectedUser){
+   if(args.length){
+      ftpSocket.write("");
+      return;
+   }
+   connectedUser.pwd = ((connectedUser.pwd).split("/" | "\\").pop()).join("");
+
+}
+
 exports.handlePwd = handlePwd;
 exports.handleCwd = handleCwd;
 exports.handleMkd = handleMkd;
 exports.handleRmd = handleRmd;
+exports.handleCdup = handleCdup;

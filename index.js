@@ -1,7 +1,7 @@
 const net = require("net");
 const {handleUser,handlePassword} = require("./authorization.js");
 const {handleNlist,handleList,emptyFiles} = require("./list.js");
-const {handleCwd,handleMkd,handlePwd,handleRmd} = require("./dirOperations.js");
+const {handleCwd,handleMkd,handlePwd,handleRmd,handleCdup} = require("./dirOperations.js");
 const {handleType,handlePasv} = require('./modes.js');
 var command = null;
 var args = [];
@@ -29,7 +29,7 @@ class FtpServer{
             })
 
             ftpSocket.on("data",(data)=>{
-                let parsedData = data.toString().split(" ");
+                let parsedData = data.split(" ");
                 command = parsedData[0].replace("\r\n","").toUpperCase();
                 args = parsedData.slice(1);
                 args = args.map((value)=>{return value.replace("\r\n","").trim()})
@@ -83,6 +83,11 @@ class FtpServer{
                         args = [];
                         break;
                     }
+                    case "CDUP":{
+                        handleCdup(ftpSocket,args,connectedUser);
+                        command = null;
+                        args = [];
+                    }
                     case "MKD":{
                         handleMkd(ftpSocket,args,connectedUser);
                         command = null;
@@ -109,22 +114,35 @@ class FtpServer{
                     }
                     case "OPTS":{
                         ftpSocket.write("200 Always in UTF8 mode\r\n");
+                        command = null;
+                        args = [];
                         break;
                     }
                     case "SYST":{
-                        ftpSocket.write("421 Service not available\r\n");
+                        ftpSocket.write(`215 ${process.platform} system type\r\n`);
+                        command = null;
+                        args = [];
                         break;
                     }
                     case "FEAT":{
-                        ftpSocket.write("421 Service not available\r\n");
+                        ftpSocket.write("202 Command not implemented, superfluous at this site\r\n");
+                        command = null;
+                        args = [];
                         break;
+                    }
+                    case "STAT":{
+
                     }
                     case "TYPE":{
                         type = handleType(ftpSocket,args);
+                        command = null;
+                        args = [];
                         break;
                     }
                     case "PASV":{
                         passive = handlePasv(ftpSocket,args,this.passive);
+                        command = null;
+                        args = [];
                         break;
 
                     }
@@ -135,7 +153,27 @@ class FtpServer{
                         }
                         connectedUser.pwd = this.userDetails.pwd;
                         ftpSocket.end("221 Service closing control connection");
+                        command = null;
+                        args = [];
                         break;
+                    }
+                    case "STOR":{
+
+                    }
+                    case "RETR":{
+
+                    }
+                    case "DELE":{
+
+                    }
+                    case "ALLO":{
+                        ftpSocket.write("202 Command not implemented, superfluous at this site\r\n");
+                        command = null;
+                        args = [];
+                        break;
+                    }
+                    case "APPE":{
+
                     }
                     case "QUIT":{
                         if(args.length){
@@ -145,7 +183,12 @@ class FtpServer{
                         emptyFiles(connectedUser);
                         connectedUser = null;
                         ftpSocket.end("221 Service closing control connection");
+                        command = null;
+                        args = [];
                         break;
+                    }
+                    default:{
+                        ftpSocket.write("421 Service not available\r\n");
                     }
                 }
             })
@@ -162,6 +205,7 @@ class FtpServer{
                 }
             })
         })
+        ftpSocket.setEncoding("utf8");
         ftpServer.listen(this.localPort,()=>{
             console.log(`Starting FTP Service at port ${this.localPort}`)
         }) 

@@ -2,20 +2,28 @@ const net = require("net");
 const {handleUser,handlePassword} = require("./authorization.js");
 const {handleNlist,handleList,emptyFiles} = require("./list.js");
 const {handleCwd,handleMkd,handlePwd,handleRmd} = require("./dirOperations.js");
+const {handleType,handlePasv} = require('./modes.js');
 var command = null;
 var args = [];
 class FtpServer{
     constructor(){
-        this.remotePort = null;
         this.localPort = 21;
-        this.remoteAddress = null;
         this.localAddress = "localhost";
         this.userDetails = [];
+        this.passive = {
+            active : true,
+            address : null,
+            port : null
+        }
     }
     
     initiateFtpServer(){
         const ftpServer = net.createServer((ftpSocket)=>{
+            var remoteAddress = null;
+            var remotePort = null;
             var connectedUser = null;
+            var type = 'A';
+            var passive = false;
             ftpSocket.write("220 Service ready for new user\r\n")
             ftpSocket.on("connect",()=>{
             })
@@ -44,21 +52,21 @@ class FtpServer{
                         p2.replace("\r\n","");
                         p1 = Number.parseInt(p1);
                         p2 = Number.parseInt(p2);
-                        this.remotePort = p1*256 + p2;
-                        this.remoteAddress = `${a1}.${a2}.${a3}.${a4}`;
+                        remotePort = p1*256 + p2;
+                        remoteAddress = `${a1}.${a2}.${a3}.${a4}`;
                         ftpSocket.write("200 PORT Okay\r\n")
                         command = null;
                         args = [];
                         break;
                     }
                     case "NLST":{
-                        handleNlist(ftpSocket,args,connectedUser,this.remoteAddress,this.remotePort);
+                        handleNlist(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,this.passive,type);
                         command = null;
                         args = [];
                         break;
                     }
                     case "LIST":{
-                        handleList(ftpSocket,args,connectedUser,this.remoteAddress,this.remotePort);
+                        handleList(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,type);
                         command = null;
                         args = [];
                         break;
@@ -103,11 +111,29 @@ class FtpServer{
                         ftpSocket.write("200 Always in UTF8 mode\r\n");
                         break;
                     }
+                    case "SYST":{
+                        ftpSocket.write("421 Service not available\r\n");
+                        break;
+                    }
+                    case "FEAT":{
+                        ftpSocket.write("421 Service not available\r\n");
+                        break;
+                    }
+                    case "TYPE":{
+                        type = handleType(ftpSocket,args);
+                        break;
+                    }
+                    case "PASV":{
+                        passive = handlePasv(ftpSocket,args,this.passive);
+                        break;
+
+                    }
                     case "REIN":{
                         if(args.length){
                             ftpSocket.write("500 Syntax error, command unrecognized\r\n");
                             break;
                         }
+                        connectedUser.pwd = this.userDetails.pwd;
                         ftpSocket.end("221 Service closing control connection");
                         break;
                     }

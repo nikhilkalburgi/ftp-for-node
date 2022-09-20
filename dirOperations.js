@@ -1,6 +1,7 @@
 var fs = require("fs");
 function handlePwd(ftpSocket,args,connectedUser){
    if(args.length){
+      console.log(args);
       ftpSocket.write("501 Syntax error in parameters or argument\r\n");
       return;
    }
@@ -8,7 +9,7 @@ function handlePwd(ftpSocket,args,connectedUser){
     ftpSocket.write("550 Requested action not taken\r\n");
  }else{
    if(fs.existsSync(connectedUser.pwd))
-    ftpSocket.write('257 "'+connectedUser.pwd+'"\r\n');
+    ftpSocket.write('257 "'+connectedUser.pwd+'/"\r\n');
     else
     ftpSocket.write("550 Requested action not taken\r\n");
  }
@@ -19,14 +20,18 @@ function handleCwd(ftpSocket,args,connectedUser){
       ftpSocket.write("501 Syntax error in parameters or argument\r\n");
       return;
    }
-   if(fs.existsSync(args[0])){
+   if(args[0].indexOf('/') == 0 || args[0].indexOf('./') == 0 || args[0].indexOf('\\') == 0 || args[0].indexOf('.\\') == 0){
+      ftpSocket.write("501 Syntax error in parameters or argument\r\n");
+      return;
+  }
+   if(fs.existsSync(args[0]) && fs.statSync(args[0]).isDirectory()){
       args[0] = args[0].replace("\\","/");
       args[0] = args[0].replace("\\\\","//");
       args[0] = args[0].split("");
       if(args[0][args[0].length-1] == '/' || args[0][args[0].length-1] == '\\')
-         args[0].pop();
-         if(args[0][args[0].length-2] == '/' || args[0][args[0].length-2] == '\\')
-         args[0].pop();   
+      args[0].pop();
+      if(args[0][args[0].length-2] == '/' || args[0][args[0].length-2] == '\\')
+      args[0].pop();   
       args[0] = args[0].join("");
       connectedUser.pwd = args[0];
       ftpSocket.write("250 Requested file action okay, completed\r\n");
@@ -60,11 +65,13 @@ function handleRmd(ftpSocket,args,connectedUser){
 
 function handleCdup(ftpSocket,args,connectedUser){
    if(args.length){
-      ftpSocket.write("");
+      ftpSocket.write("501 Syntax error in parameters or argument\r\n");
       return;
    }
-   connectedUser.pwd = ((connectedUser.pwd).split("/" | "\\").pop()).join("");
-
+   connectedUser.pwd = ((connectedUser.pwd).split("/"));
+   connectedUser.pwd.pop();
+   connectedUser.pwd = connectedUser.pwd.join("/");
+   ftpSocket.write("250 Requested file action okay, completed\r\n");
 }
 
 exports.handlePwd = handlePwd;

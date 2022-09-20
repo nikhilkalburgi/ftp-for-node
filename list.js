@@ -64,7 +64,12 @@ function handleNlist(ftpSocket,args,connectedUser,address,port,passive,passiveDe
             connectToClient(ftpSocket,address,port,files[connectedUser.name],passive,passiveDetails,type)
         }
     }else{
-        pathname = pathname.replace("./","")
+        if(pathname.indexOf('/') == 0 || pathname.indexOf('./') == 0 || pathname.indexOf('\\') == 0 || pathname.indexOf('.\\') == 0){
+            pathname = pathname.replace("./","")
+            pathname = pathname.replace("/","")
+            pathname = pathname.replace(".\\","")
+            pathname = pathname.replace("\\","")
+        }
         if(files[connectedUser.name].includes(pathname)){
             let dirent = fs.statSync(`${connectedUser.pwd}/${pathname}`);
             let content;
@@ -90,7 +95,7 @@ function handleList(ftpSocket,args,connectedUser,address,port,passive,passiveDet
             console.log(v);
             if(v != "System Volume Information" && v != ".git"){
                 let stat = fs.statSync(connectedUser.pwd+'/'+v)	
-                fix.push(`${stat.mode} ${stat.uid} ${stat.gid} ${stat.size} ${stat.mtime} ${v}`)
+                fix.push(`${stat.mode} ${stat.uid} ${stat.gid} ${stat.size} ${stat.mtimeMs} ${v}`)
             }
         }
         console.log(fix)
@@ -105,7 +110,12 @@ function handleList(ftpSocket,args,connectedUser,address,port,passive,passiveDet
             connectToClient(ftpSocket,address,port,files[connectedUser.name],passive,passiveDetails,type)
         }
     }else{
-        pathname = pathname.replace("./","")
+        if(pathname.indexOf('/') == 0 ||pathname.indexOf('./') == 0 || pathname.indexOf('\\') == 0 || pathname.indexOf('.\\') == 0){
+            pathname = pathname.replace("./","")
+            pathname = pathname.replace("/","")
+            pathname = pathname.replace(".\\","")
+            pathname = pathname.replace("\\","")
+        }
         if(files[connectedUser.name].includes(pathname)){
             let dirent = fs.statSync(`${connectedUser.pwd}/${pathname}`);
             let content;
@@ -117,7 +127,7 @@ function handleList(ftpSocket,args,connectedUser,address,port,passive,passiveDet
                 let fix = [];
                 for(let v of content){
                 let stat = fs.statSync(connectedUser.pwd+'/'+v)	
-                fix.push(`${stat.mode} ${stat.nlink} ${stat.uid} ${stat.gid} ${stat.size} ${stat.mtime} ${v}`)
+                fix.push(`${stat.mode} ${stat.uid} ${stat.gid} ${stat.size} ${stat.mtimeMs} ${v}`)
                 }
                 console.log(fix)
                 content = fix.slice();

@@ -3,6 +3,7 @@ const {handleUser,handlePassword} = require("./authorization.js");
 const {handleNlist,handleList,emptyFiles} = require("./list.js");
 const {handleCwd,handleMkd,handlePwd,handleRmd,handleCdup} = require("./dirOperations.js");
 const {handleType,handlePasv} = require('./modes.js');
+const { handleStor,handleRetr,handleDele,handleAppe } = require("./fileOperations.js");
 var command = null;
 var args = [];
 class FtpServer{
@@ -19,6 +20,7 @@ class FtpServer{
     
     initiateFtpServer(){
         const ftpServer = net.createServer((ftpSocket)=>{
+            ftpSocket.setEncoding("utf8");
             var remoteAddress = null;
             var remotePort = null;
             var connectedUser = null;
@@ -66,12 +68,18 @@ class FtpServer{
                         break;
                     }
                     case "LIST":{
-                        handleList(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,type);
+                        handleList(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,this.passive,type);
                         command = null;
                         args = [];
                         break;
                     }
                     case "PWD":{
+                        handlePwd(ftpSocket,args,connectedUser);
+                        command = null;
+                        args = [];
+                        break;
+                    }
+                    case "XPWD":{
                         handlePwd(ftpSocket,args,connectedUser);
                         command = null;
                         args = [];
@@ -158,13 +166,22 @@ class FtpServer{
                         break;
                     }
                     case "STOR":{
-
+                        handleStor(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,this.passive,type);
+                        command = null;
+                        args = [];
+                        break;
                     }
                     case "RETR":{
-
+                        handleRetr(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,this.passive,type);
+                        command = null;
+                        args = [];
+                        break;
                     }
                     case "DELE":{
-
+                        handleDele(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,this.passive,type);
+                        command = null;
+                        args = [];
+                        break;
                     }
                     case "ALLO":{
                         ftpSocket.write("202 Command not implemented, superfluous at this site\r\n");
@@ -173,7 +190,10 @@ class FtpServer{
                         break;
                     }
                     case "APPE":{
-
+                        handleAppe(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,this.passive,type);
+                        command = null;
+                        args = [];
+                        break;
                     }
                     case "QUIT":{
                         if(args.length){
@@ -205,7 +225,7 @@ class FtpServer{
                 }
             })
         })
-        ftpSocket.setEncoding("utf8");
+
         ftpServer.listen(this.localPort,()=>{
             console.log(`Starting FTP Service at port ${this.localPort}`)
         }) 

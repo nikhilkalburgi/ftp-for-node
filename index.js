@@ -75,7 +75,6 @@ class FtpServer{
                     args = parsedData.slice(1);
                     args = args.map((value)=>{return value.replace("\r\n","").trim()})
                     console.log(command,args);
-                    ftpSocket.flush();
                     switch(command){
                         case "USER":{
                             connectedUser = handleUser(ftpSocket,args,this.userDetails,this.defaultPWD);
@@ -142,11 +141,13 @@ class FtpServer{
                             handleCdup(ftpSocket,args,connectedUser,originalPWD);
                             command = null;
                             args = [];
+                            break;
                         }
                         case "XCUP":{
                             handleCdup(ftpSocket,args,connectedUser,originalPWD);
                             command = null;
                             args = [];
+                            break;
                         }
                         case "MKD":{
                             handleMkd(ftpSocket,args,connectedUser);
@@ -214,8 +215,8 @@ class FtpServer{
                                 ftpSocket.write("500 Syntax error, command unrecognized\r\n");
                                 break;
                             }
-                            connectedUser.pwd = this.userDetails.pwd;
-                            ftpSocket.end("221 Service closing control connection");
+                            connectedUser.pwd = originalPWD;
+                            ftpSocket.write("220 Service ready for new user\r\n")
                             command = null;
                             args = [];
                             break;
@@ -269,7 +270,7 @@ class FtpServer{
                             }
                             emptyFiles(connectedUser);
                             connectedUser = null;
-                            ftpSocket.end("221 Service closing control connection");
+                            ftpSocket.end("221 Service closing control connection\r\n");
                             command = null;
                             args = [];
                             break;
@@ -282,14 +283,16 @@ class FtpServer{
     
                 ftpSocket.on("error",(error)=>{
                     console.log(error);
+                    ftpSocket.write("502 Command not implemented\r\n");
                 })
     
                 ftpSocket.on("close",(error)=>{
                     if(error){
                         console.log("Socket had a transmission error")                    
                     }else{
-                        console.log("Connection Closed.") 
+                        console.log("Connection Closed by "+connectedUser.name) 
                     }
+                    ftpSocket.write("502 Command not implemented\r\n");
                 })
             })
     

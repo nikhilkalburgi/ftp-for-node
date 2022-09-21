@@ -1,6 +1,5 @@
 var fs = require("fs");
 function handlePwd(ftpSocket,args,connectedUser){
-   console.log("im PWD")
    try{
    if(args.length){
       ftpSocket.write("501 Syntax error in parameters or argument\r\n");
@@ -8,15 +7,18 @@ function handlePwd(ftpSocket,args,connectedUser){
    }
  if(!connectedUser.pwd){
     ftpSocket.write("550 Requested action not taken\r\n");
+    return;
  }else{
    if(fs.existsSync(connectedUser.pwd))
     ftpSocket.write('257 "'+connectedUser.pwd+'"\r\n');
     else
     ftpSocket.write("550 Requested action not taken\r\n");
+ return;
  }
    }
    catch(err){
       console.log(err);
+      ftpSocket.write("502 Command not implemented\r\n");
    }
 
 }
@@ -47,16 +49,18 @@ if(!args.length){
    
   args[0] = args[0].join("");
 
-console.log(args[0].startsWith(originalPWD) , args[0] , originalPWD)
   if(fs.existsSync(args[0]) && fs.statSync(args[0]).isDirectory() && (args[0].startsWith(originalPWD) || args[0] == originalPWD)){
       connectedUser.pwd = args[0];
       ftpSocket.write("250 Requested file action okay, completed\r\n");
+      return;
    }else{
       ftpSocket.write("550 Requested action not taken\r\n");
+      return;
    }
 }
 catch(err){
    console.log(err);
+   ftpSocket.write("502 Command not implemented\r\n");
 }
 }
 
@@ -66,8 +70,10 @@ if(!args.length || /[<>\/\\:\|*?]/g.test(args[0])){
       ftpSocket.write("501 Syntax error in parameters or argument\r\n");
       return;
    }
-   fs.mkdirSync(`${connectedUser.pwd}/${args[0]}`);
-   ftpSocket.write('257 "'+`${connectedUser.pwd}/${args[0]}`+'" created\r\n')
+         fs.mkdirSync(`${connectedUser.pwd}/${args[0]}`);
+           ftpSocket.write('257 "'+`${connectedUser.pwd}/${args[0]}`+'" created\r\n')
+ 
+   return;
 }
 catch(err){
    console.log(err);
@@ -90,6 +96,7 @@ function handleRmd(ftpSocket,args,connectedUser){
    }
    catch(err){
       console.log(err);
+      ftpSocket.write("502 Command not implemented\r\n");
    }
 
 }
@@ -103,18 +110,20 @@ function handleCdup(ftpSocket,args,connectedUser,originalPWD){
    let temp= connectedUser.pwd.split("/");
    temp.pop();
    if(temp[0] == "")temp[0] = '/'
-console.log(temp)
    if(temp.join("/").startsWith(originalPWD)){
          connectedUser.pwd = temp.join("/");
    ftpSocket.write("250 Requested file action okay, completed\r\n");
+   return;
    }
    else{
       ftpSocket.write("550 Requested action not taken\r\n");
+      return;
    }
 
    }
    catch(err){
       console.log(err);
+      ftpSocket.write("502 Command not implemented\r\n");
    }
 
 }
@@ -134,6 +143,7 @@ function handleRnfr(ftpSocket,args,connectedUser){
    }
    catch(err){
       console.log(err);
+      ftpSocket.write("502 Command not implemented\r\n");
    }
 
 }
@@ -149,6 +159,7 @@ function handleRnto(ftpSocket,args,connectedUser){
    }
    catch(err){
       console.log(err);
+      ftpSocket.write("502 Command not implemented\r\n");
    }
 
 }

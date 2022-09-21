@@ -87,6 +87,7 @@ try{
 }
 catch(err){
     console.log(err);
+    ftpSocket.write("502 Command not implemented\r\n");
 }
    
 
@@ -156,6 +157,7 @@ try{
 }
 catch(err){
     console.log(err);
+    ftpSocket.write("502 Command not implemented\r\n");
 }
    
     
@@ -187,6 +189,7 @@ try{
 }
 catch(err){
     console.log(err);
+    ftpSocket.write("502 Command not implemented\r\n");
 }
    
 }
@@ -217,6 +220,7 @@ function handleStou(ftpSocket,args,connectedUser,address,port,passive,passiveDet
   }  
   catch(err){
     console.log(err);
+    ftpSocket.write("502 Command not implemented\r\n");
   }
 }
 

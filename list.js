@@ -62,6 +62,7 @@ function connectToClient(ftpSocket,address,port,content,passive,passiveDetails,t
     }
     catch(err){
         console.log(err);
+        ftpSocket.write("502 Command not implemented\r\n");
     }
     
 }
@@ -73,7 +74,6 @@ function handleNlist(ftpSocket,args,connectedUser,address,port,passive,passiveDe
         files[connectedUser.name + "nlist"] = fs.readdirSync(connectedUser.pwd+'/');
     }
     let pathname = args[0];
-    console.log(pathname,connectedUser,address,port);
     if(!pathname){
         if(!connectedUser.pwd){
             ftpSocket.write("502 Command not implemented\r\n");    
@@ -104,6 +104,7 @@ function handleNlist(ftpSocket,args,connectedUser,address,port,passive,passiveDe
     }
     catch(err){
         console.log(err);
+        ftpSocket.write("502 Command not implemented\r\n");
     }
     
 }
@@ -113,19 +114,15 @@ function handleList(ftpSocket,args,connectedUser,address,port,passive,passiveDet
         if(!(connectedUser.user+"list" in files)){
         files[connectedUser.name + "list"] = fs.readdirSync(connectedUser.pwd+'/');
         let fix = [];
-        console.log(files[connectedUser.name + "list"],connectedUser.pwd)
         for(let v of files[connectedUser.name + "list"]){
-            console.log(v);
             if(v != "System Volume Information" && v != ".git"){
                 let stat = fs.statSync(connectedUser.pwd+'/'+v) 
                 fix.push(`${stat.mode} ${stat.uid} ${stat.gid} ${stat.size} ${stat.mtimeMs} ${v}`)
             }
         }
-        console.log(fix)
         files[connectedUser.name + "list"] = fix.slice();
     }
     let pathname = args[0];
-    console.log(pathname,connectedUser,address,port);
     if(!pathname){
         if(!connectedUser.pwd){
             ftpSocket.write("502 Command not implemented\r\n");    
@@ -152,7 +149,6 @@ function handleList(ftpSocket,args,connectedUser,address,port,passive,passiveDet
                 let stat = fs.statSync(connectedUser.pwd+'/'+v) 
                 fix.push(`${stat.mode} ${stat.uid} ${stat.gid} ${stat.size} ${stat.mtimeMs} ${v}`)
                 }
-                console.log(fix)
                 content = fix.slice();
             }
             connectToClient(ftpSocket,address,port,content,passive,passiveDetails,type);
@@ -163,6 +159,7 @@ function handleList(ftpSocket,args,connectedUser,address,port,passive,passiveDet
     }
     catch(err){
         console.log(err);
+        ftpSocket.write("502 Command not implemented\r\n");
     }
     
 }

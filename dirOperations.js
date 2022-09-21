@@ -24,15 +24,15 @@ function handleCwd(ftpSocket,args,connectedUser){
       ftpSocket.write("501 Syntax error in parameters or argument\r\n");
       return;
   }
-   if(fs.existsSync(args[0]) && fs.statSync(args[0]).isDirectory()){
-      args[0] = args[0].replace("\\","/");
-      args[0] = args[0].replace("\\\\","//");
-      args[0] = args[0].split("");
-      if(args[0][args[0].length-1] == '/' || args[0][args[0].length-1] == '\\')
-      args[0].pop();
-      if(args[0][args[0].length-2] == '/' || args[0][args[0].length-2] == '\\')
-      args[0].pop();   
-      args[0] = args[0].join("");
+  args[0] = args[0].replaceAll("\\\\","/");
+  args[0] = args[0].replaceAll("\\","/");
+  args[0] = args[0].split("");
+  if(args[0][args[0].length-1] == '/' || args[0][args[0].length-1] == '\\')
+  args[0].pop();
+  if(args[0][args[0].length-2] == '/' || args[0][args[0].length-2] == '\\')
+  args[0].pop();   
+  args[0] = args[0].join("");
+  if(fs.existsSync(args[0]) && fs.statSync(args[0]).isDirectory()){
       connectedUser.pwd = args[0];
       ftpSocket.write("250 Requested file action okay, completed\r\n");
    }else{

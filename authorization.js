@@ -1,5 +1,5 @@
 let users = null;
-function handleUser(ftpSocket,args,userDetails){
+function handleUser(ftpSocket,args,userDetails,defaultPWD){
     if(!args.length){
         ftpSocket.end("501 Syntax error in parameters or argument\r\n");
         return;
@@ -7,6 +7,7 @@ function handleUser(ftpSocket,args,userDetails){
     let username = args[0],connectedUser = null;
     users = userDetails.map(value=>value.name);
     if(!userDetails.length){
+        connectedUser = {pwd:defaultPWD};
         ftpSocket.write("230 User logged in, proceed\r\n");    
     }else{
         if(users.includes(username)){

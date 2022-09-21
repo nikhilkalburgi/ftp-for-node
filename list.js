@@ -19,7 +19,7 @@ function connectToClient(ftpSocket,address,port,content,passive,passiveDetails,t
     if(type == 'I'){
         content = Buffer.from(content,'ascii');
     }
-    if(!address && !port){
+    if(!address && !port && !passive){
         console.error("Address or port in not correct.");
         ftpSocket.write("502 Command not implemented\r\n");
         return;
@@ -27,10 +27,18 @@ function connectToClient(ftpSocket,address,port,content,passive,passiveDetails,t
     ftpSocket.write("150 File status okay; about to open data connection.\r\n");
     if(passive){
         if(passiveDetails.active){
-            const dataServer = fs.createServer((sock)=>{
+            const dataServer = net.createServer((sock)=>{
                 sock.write(content);
                 ftpSocket.write("226 Closing data connection\r\n");
                 sock.end();
+                sock.on("error",(err)=>{
+                    console.log(err);
+                    ftpSocket.write("425 Can't open data connection\r\n");
+                })
+            })
+            dataServer.on("error",(err)=>{
+                console.log(err);
+                ftpSocket.write("425 Can't open data connection\r\n");
             })
             dataServer.listen(passiveDetails.port);
         }else{

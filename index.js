@@ -1,9 +1,11 @@
 const net = require("net");
+const fs = require("fs");
+const os = require("os");
 const {handleUser,handlePassword} = require("./authorization.js");
 const {handleNlist,handleList,emptyFiles} = require("./list.js");
 const {handleCwd,handleMkd,handlePwd,handleRmd,handleCdup} = require("./dirOperations.js");
 const {handleType,handlePasv} = require('./modes.js');
-const { handleStor,handleRetr,handleDele,handleAppe } = require("./fileOperations.js");
+const { handleStor,handleRetr,handleDele,handleAppe,handleStou } = require("./fileOperations.js");
 var command = null;
 var args = [];
 class FtpServer{
@@ -28,9 +30,16 @@ class FtpServer{
             if(this.userDetails.pwd[this.userDetails.pwd.length-2] == '/')
             this.userDetails.pwd.pop();   
             this.userDetails.pwd = this.userDetails.pwd.join("");
-            if(fs.existsSync(this.userDetails.pwd) && this.userDetails.pwd.indexOf('/') != 0 && this.userDetails.pwd.indexOf('./') != 0)
+            if(fs.existsSync(this.userDetails.pwd)){
+            if( process.platform == "win32" && this.userDetails.pwd.indexOf('/') != 0 && this.userDetails.pwd.indexOf('./') != 0){
             return true;
-            else{
+            }else if(process.platform != "win32" && this.userDetails.pwd.indexOf('/') == 0 && this.userDetails.pwd.indexOf('./') != 0){
+                        return true;
+            }else{
+                console.log("The PWD is Invalid.");
+                return false;
+            }        
+            }else{
                 console.log("The PWD is Invalid.");
                 return false;
             }
@@ -38,6 +47,11 @@ class FtpServer{
         if(!this.defaultPWD){
             console.log("The defaultPWD is NIL.");
             return false;
+        }else{
+        if(!fs.existsSync(this.defaultPWD)){
+            console.log("The defaultPWD is NIL.");
+            return false;
+        }
         }
 
         return true;
@@ -52,6 +66,7 @@ class FtpServer{
                 var connectedUser = null;
                 var type = 'A';
                 var passive = false;
+                var originalPWD = this.defaultPWD;
                 ftpSocket.write("220 Service ready for new user\r\n")
     
                 ftpSocket.on("data",(data)=>{
@@ -60,9 +75,11 @@ class FtpServer{
                     args = parsedData.slice(1);
                     args = args.map((value)=>{return value.replace("\r\n","").trim()})
                     console.log(command,args);
+                    ftpSocket.flush();
                     switch(command){
                         case "USER":{
                             connectedUser = handleUser(ftpSocket,args,this.userDetails,this.defaultPWD);
+                            originalPWD = connectedUser.pwd;
                             command = null;
                             args = [];
                             break;
@@ -110,13 +127,24 @@ class FtpServer{
                             break;
                         }
                         case "CWD":{
-                            handleCwd(ftpSocket,args,connectedUser);
+                            handleCwd(ftpSocket,args,connectedUser,originalPWD);
+                            command = null;
+                            args = [];
+                            break;
+                        }
+                        case "XCWD":{
+                            handleCwd(ftpSocket,args,connectedUser,originalPWD);
                             command = null;
                             args = [];
                             break;
                         }
                         case "CDUP":{
-                            handleCdup(ftpSocket,args,connectedUser);
+                            handleCdup(ftpSocket,args,connectedUser,originalPWD);
+                            command = null;
+                            args = [];
+                        }
+                        case "XCUP":{
+                            handleCdup(ftpSocket,args,connectedUser,originalPWD);
                             command = null;
                             args = [];
                         }
@@ -163,7 +191,10 @@ class FtpServer{
                             break;
                         }
                         case "STAT":{
-    
+                            ftpSocket.write(`211 OS : ${os.platform()} Version : ${os.version()} Arch : ${os.arch}\nEndianness : ${os.endianness()} FreeSpace : ${os.freemem()} Home : ${os.homedir()}\r\n`);
+                            command = null;
+                            args = [];
+                            break;
                         }
                         case "TYPE":{
                             type = handleType(ftpSocket,args);
@@ -207,6 +238,12 @@ class FtpServer{
                             args = [];
                             break;
                         }
+                        case "XDEL":{
+                            handleDele(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,this.passive,type);
+                            command = null;
+                            args = [];
+                            break;
+                        }
                         case "ALLO":{
                             ftpSocket.write("202 Command not implemented, superfluous at this site\r\n");
                             command = null;
@@ -215,6 +252,12 @@ class FtpServer{
                         }
                         case "APPE":{
                             handleAppe(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,this.passive,type);
+                            command = null;
+                            args = [];
+                            break;
+                        }
+                        case "Stou":{
+                            handleStou(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,this.passive,type);
                             command = null;
                             args = [];
                             break;
@@ -250,8 +293,8 @@ class FtpServer{
                 })
             })
     
-            ftpServer.listen(this.localPort,()=>{
-                console.log(`Starting FTP Service at port ${this.localPort}`)
+            ftpServer.listen(this.localPort,this.localAddress,()=>{
+                console.log(`Starting FTP Service at port ${this.localPort} with Passive : ${this.passive.active}`)
             }) 
         }
     }
@@ -259,5 +302,5 @@ class FtpServer{
 
 
 let s = new FtpServer();
-s.defaultPWD = "E:/nodefiles/folder";
+s.defaultPWD = "/";
 s.initiateFtpServer();

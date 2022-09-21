@@ -7,25 +7,27 @@ function emptyFiles(connectedUser){
     delete files[connectedUser.name];
 }
 function connectToClient(ftpSocket,address,port,content,passive,passiveDetails,type){
-    if(!content){
+
+    try{
+        if(!content){
         ftpSocket.write("450 Requested file action not taken\r\n");
         return;
-    }
-    if(!Array.isArray(content)){
+     }
+     if(!Array.isArray(content)){
         content = `${content.name} ${content.size}\n`;
-    }else{
+     }else{
         content = content.join("\n") + '\n';
-    }
-    if(type == 'I'){
+     }
+     if(type == 'I'){
         content = Buffer.from(content,'ascii');
-    }
-    if(!address && !port && !passive){
+     }
+     if(!address && !port && !passive){
         console.error("Address or port in not correct.");
         ftpSocket.write("502 Command not implemented\r\n");
         return;
-    }
-    ftpSocket.write("150 File status okay; about to open data connection.\r\n");
-    if(passive){
+     }
+     ftpSocket.write("150 File status okay; about to open data connection.\r\n");
+     if(passive){
         if(passiveDetails.active){
             const dataServer = net.createServer((sock)=>{
                 sock.write(content);
@@ -44,7 +46,7 @@ function connectToClient(ftpSocket,address,port,content,passive,passiveDetails,t
         }else{
             ftpSocket.write("421 Service not available\r\n")
         }
-    }else{
+     }else{
             let socket = net.createConnection({port:port,host:address},()=>{
             console.log(`Connected to ${address}:${port}`);
             socket.write(content);
@@ -56,12 +58,19 @@ function connectToClient(ftpSocket,address,port,content,passive,passiveDetails,t
                 ftpSocket.write("425 Can't open data connection\r\n");
             })
         })
+     }
     }
+    catch(err){
+        console.log(err);
+    }
+    
 }
 
 function handleNlist(ftpSocket,args,connectedUser,address,port,passive,passiveDetails,type){
-    if(!(connectedUser.user in files)){
-        files[connectedUser.name] = fs.readdirSync(connectedUser.pwd+'/');
+
+    try{
+        if(!(connectedUser.user + "nlist" in files)){
+        files[connectedUser.name + "nlist"] = fs.readdirSync(connectedUser.pwd+'/');
     }
     let pathname = args[0];
     console.log(pathname,connectedUser,address,port);
@@ -69,7 +78,7 @@ function handleNlist(ftpSocket,args,connectedUser,address,port,passive,passiveDe
         if(!connectedUser.pwd){
             ftpSocket.write("502 Command not implemented\r\n");    
         }else{
-            connectToClient(ftpSocket,address,port,files[connectedUser.name],passive,passiveDetails,type)
+            connectToClient(ftpSocket,address,port,files[connectedUser.name + "nlist"],passive,passiveDetails,type)
         }
     }else{
         if(pathname.indexOf('/') == 0 || pathname.indexOf('./') == 0 || pathname.indexOf('\\') == 0 || pathname.indexOf('.\\') == 0){
@@ -78,7 +87,7 @@ function handleNlist(ftpSocket,args,connectedUser,address,port,passive,passiveDe
             pathname = pathname.replace(".\\","")
             pathname = pathname.replace("\\","")
         }
-        if(files[connectedUser.name].includes(pathname)){
+        if(files[connectedUser.name + "nlist"].includes(pathname)){
             let dirent = fs.statSync(`${connectedUser.pwd}/${pathname}`);
             let content;
             if(dirent.isFile()){
@@ -92,22 +101,28 @@ function handleNlist(ftpSocket,args,connectedUser,address,port,passive,passiveDe
             ftpSocket.write("501 Syntax error in parameters or argument\r\n");
         }
     }
+    }
+    catch(err){
+        console.log(err);
+    }
+    
 }
 
 function handleList(ftpSocket,args,connectedUser,address,port,passive,passiveDetails,type){
-    if(!(connectedUser.user in files)){
-        files[connectedUser.name] = fs.readdirSync(connectedUser.pwd+'/');
+    try{
+        if(!(connectedUser.user+"list" in files)){
+        files[connectedUser.name + "list"] = fs.readdirSync(connectedUser.pwd+'/');
         let fix = [];
-        console.log(files[connectedUser.name],connectedUser.pwd)
-        for(let v of files[connectedUser.name]){
+        console.log(files[connectedUser.name + "list"],connectedUser.pwd)
+        for(let v of files[connectedUser.name + "list"]){
             console.log(v);
             if(v != "System Volume Information" && v != ".git"){
-                let stat = fs.statSync(connectedUser.pwd+'/'+v)	
+                let stat = fs.statSync(connectedUser.pwd+'/'+v) 
                 fix.push(`${stat.mode} ${stat.uid} ${stat.gid} ${stat.size} ${stat.mtimeMs} ${v}`)
             }
         }
         console.log(fix)
-        files[connectedUser.name] = fix.slice();
+        files[connectedUser.name + "list"] = fix.slice();
     }
     let pathname = args[0];
     console.log(pathname,connectedUser,address,port);
@@ -115,7 +130,7 @@ function handleList(ftpSocket,args,connectedUser,address,port,passive,passiveDet
         if(!connectedUser.pwd){
             ftpSocket.write("502 Command not implemented\r\n");    
         }else{
-            connectToClient(ftpSocket,address,port,files[connectedUser.name],passive,passiveDetails,type)
+            connectToClient(ftpSocket,address,port,files[connectedUser.name + "list"],passive,passiveDetails,type)
         }
     }else{
         if(pathname.indexOf('/') == 0 ||pathname.indexOf('./') == 0 || pathname.indexOf('\\') == 0 || pathname.indexOf('.\\') == 0){
@@ -124,7 +139,7 @@ function handleList(ftpSocket,args,connectedUser,address,port,passive,passiveDet
             pathname = pathname.replace(".\\","")
             pathname = pathname.replace("\\","")
         }
-        if(files[connectedUser.name].includes(pathname)){
+        if(files[connectedUser.name + "list"].includes(pathname)){
             let dirent = fs.statSync(`${connectedUser.pwd}/${pathname}`);
             let content;
             if(dirent.isFile()){
@@ -134,7 +149,7 @@ function handleList(ftpSocket,args,connectedUser,address,port,passive,passiveDet
                 content = fs.readdirSync(`${connectedUser.pwd}/${pathname}`);
                 let fix = [];
                 for(let v of content){
-                let stat = fs.statSync(connectedUser.pwd+'/'+v)	
+                let stat = fs.statSync(connectedUser.pwd+'/'+v) 
                 fix.push(`${stat.mode} ${stat.uid} ${stat.gid} ${stat.size} ${stat.mtimeMs} ${v}`)
                 }
                 console.log(fix)
@@ -145,6 +160,11 @@ function handleList(ftpSocket,args,connectedUser,address,port,passive,passiveDet
             ftpSocket.write("501 Syntax error in parameters or argument\r\n");
         }
     }
+    }
+    catch(err){
+        console.log(err);
+    }
+    
 }
 
 exports.handleNlist = handleNlist;

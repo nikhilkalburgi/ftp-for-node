@@ -3,7 +3,7 @@ const fs = require("fs");
 const os = require("os");
 const {handleUser,handlePassword} = require("./authorization.js");
 const {handleNlist,handleList,emptyFiles} = require("./list.js");
-const {handleCwd,handleMkd,handlePwd,handleRmd,handleCdup} = require("./dirOperations.js");
+const {handleCwd,handleMkd,handlePwd,handleRmd,handleCdup,handleRnfr,handleRnto} = require("./dirOperations.js");
 const {handleType,handlePasv} = require('./modes.js');
 const { handleStor,handleRetr,handleDele,handleAppe,handleStou } = require("./fileOperations.js");
 var command = null;
@@ -16,7 +16,7 @@ class FtpServer{
         this.passive = {
             active : true,
             address : "127.0.0.1",
-            port : 4000
+            port : 40000
         }
         this.defaultPWD = null;
     }
@@ -173,6 +173,18 @@ class FtpServer{
                             args = [];
                             break;
                         }
+                        case "RNFR":{
+                            handleRnfr(ftpSocket,args,connectedUser);
+                            command = null;
+                            args = [];
+                            break;
+                        }
+                        case "RNTO":{
+                            handleRnto(ftpSocket,args,connectedUser);
+                            command = null;
+                            args = [];
+                            break;
+                        }
                         case "OPTS":{
                             ftpSocket.write("200 Always in UTF8 mode\r\n");
                             command = null;
@@ -257,7 +269,7 @@ class FtpServer{
                             args = [];
                             break;
                         }
-                        case "Stou":{
+                        case "STOU":{
                             handleStou(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,this.passive,type);
                             command = null;
                             args = [];
@@ -305,5 +317,5 @@ class FtpServer{
 
 
 let s = new FtpServer();
-s.defaultPWD = "/";
+s.defaultPWD = "E:/";
 s.initiateFtpServer();

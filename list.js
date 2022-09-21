@@ -37,6 +37,7 @@ function connectToClient(ftpSocket,address,port,content,passive,passiveDetails,t
                     console.log(err);
                     ftpSocket.write("425 Can't open data connection\r\n");
                 })
+                dataServer.close();
             })
             dataServer.on("error",(err)=>{
                 console.log(err);

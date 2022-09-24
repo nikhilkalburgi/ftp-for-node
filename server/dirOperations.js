@@ -37,6 +37,8 @@ try{
             ftpSocket.write("501 Syntax error in parameters or argument\r\n");
             return;
       }
+
+      args[0] = args.join(" ");
       args[0] = args[0].replace(/\\/g,"/");
       args[0] = args[0].split("");
       if(args[0].length > 1){

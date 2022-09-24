@@ -7,7 +7,7 @@ function handleUser(ftpSocket,args,userDetails,defaultPWD){
     let username = args[0],connectedUser = null;
     users = userDetails.map(value=>value.name);
     if(!userDetails.length){
-        connectedUser = {pwd:defaultPWD};
+        connectedUser = {name:"ftp",pwd:defaultPWD};
         ftpSocket.write("230 User logged in, proceed\r\n");    
     }else{
         if(users.includes(username)){

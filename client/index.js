@@ -1,15 +1,14 @@
 const net = require("net");
 const { EventEmitter } = require("stream");
 const fs = require("fs");
-const {addToQueue} = require("./dataConnection.js");
-let _currentCmd = null;
+const {addToQueue, connectPassive,isTransferCmd,isPassive,execNext} = require("./utilities.js");
+let queue = [];
 class FtpClient extends EventEmitter{
     constructor(){
         super();
         this.port = 21;
         this.address = "localhost";
         this.dataChannel = {
-            address : null,
             port : null
         };
         this.user = null;
@@ -20,107 +19,208 @@ class FtpClient extends EventEmitter{
             address : null,
             port : null
         };
-        this._currentCmd = [];
-        this._statusCode = [];
-        this._statusMessage = [];
-        
+        this._statusCode = null;
+        this._statusMessage = null;  
+        this.localSite = null; 
+    }
+
+    checkUserInput(){
+        if( typeof this.port != "number" || typeof this.address != "string" || typeof this._passive != "object" || typeof this.dataChannel != "object" || typeof this.localSite != "string"){
+            console.log("Error : Invalid Type");
+            return false;
+        }
+        if(typeof this._passive.active != "boolean" || typeof this.dataChannel.port != "number"){
+            console.log("Error : Invalid Type");
+            return false;
+        }   
+        this.localSite = this.localSite.replace(/\\/g,"/");
+        this.localSite = this.localSite.split("");
+        if(this.localSite[this.localSite.length-1] != "/"){
+            this.localSite.push("/");
+        }   
+        this.localSite = this.localSite.join("");
+        console.log(this.localSite);
+        return true;
     }
 
     connect(){
         try{
-            this._ControlChannel = net.createConnection({
-                host : this.address,
-                port : this.port,
-            });
-            this._ControlChannel.on("data",(data)=>{
-                let parsedData = data.toString().split("\r\n");
-                parsedData.pop();
-                for(let value of parsedData){
-                    this._statusCode.push(value.split(" ")[0]);
-                    this._statusMessage.push(value.split(" ").slice(1).join(" "));
-                }
-                console.log(this._statusCode,this._statusMessage);
-                while(this._statusCode.length){
-                    _currentCmd = this._currentCmd.shift();
-                    switch(this._statusCode.shift()){
-                        case "220":{
-                            this._currentCmd.push("user");
-                            this._ControlChannel.write(`USER ${this.user}\r\n`);
-                            this._statusMessage.shift();
-                            break;
-                        }
-                        case "331":{
-                            this._currentCmd.push("pass");
-                            this._ControlChannel.write(`PASS ${this.password}\r\n`);
-                            break;
-                        }
-                        case "230":{
-                            this.emit("ready",230,this._statusMessage.shift());
-                            break;
-                        }
-                        case "200":{
-                            this.emit(`_${_currentCmd}`,null,{status:200,message:this._statusMessage.shift()});
-                            break;
-                        }
-                        case "250":{
-                            this.emit(`_${_currentCmd}`,null,{status:250,message:this._statusMessage.shift()});
-                            break;                    
-                        }
-                        case "257":{
-                            this.emit(`_${_currentCmd}`,null,{status:257,message:this._statusMessage.shift()});
-                            break;
-                        }
-                        case "227":{
-                            let temp = this._statusMessage[0].split(",");
-                            temp[0] = temp[0].split("(")[1].trim();
-                            temp[1] = temp[1].trim();
-                            temp[2] = temp[2].trim();
-                            temp[3] = temp[3].trim();
-                            temp[4] = temp[4].trim();
-                            temp[5] = temp[5].split(")")[1].trim();
-                            this._passive.active = true;
-                            this._passive.address = temp.slice(0,3).join(".");
-                            this._passive.port = parseInt(temp[4]*256 + temp[5]);
-                            this.emit(`_${_currentCmd}`,null,{status:227,message:this._statusMessage.shift()});
-                            break;
-                        }
-                        case "500":{
-                            this.emit(`_${_currentCmd}`,{status:500,message:this._statusMessage.shift()},null);
-                            break;
-                        }
-                        case "502":{
-                            this.emit(`_${_currentCmd}`,{status:502,message:this._statusMessage.shift()},null);
-                            break;
-                        }
-                        case "501":{
-                            this.emit(`_${_currentCmd}`,{status:501,message:this._statusMessage.shift()},null);
-                            break;
-                        }
-                        case "450":{
-                            this.emit(`_${_currentCmd}`,{status:450,message:this._statusMessage.shift()},null);
-                            break;
-                        }
-                        case "425":{
-                            this.emit(`_${_currentCmd}`,{status:425,message:this._statusMessage.shift()},null);
-                            break;
-                        }
-                        default:{
-                            this._statusMessage.shift();
-                        }
-        
-                    } 
-    
-                }
-                
-            })
 
+            if(this.checkUserInput()){
+
+                this._ControlChannel = net.createConnection({
+                    host : this.address,
+                    port : this.port,
+                });
+                this._ControlChannel.on("data",(data)=>{
+                    let parsedData = data.toString().split(" ");
+                    this._statusCode = parsedData[0]
+                    this._statusMessage = parsedData.slice(1).join(" ");
+                    this._statusMessage.replace(/\r\n/g,"");
+                    console.log(this._statusCode,this._statusMessage)
+                        switch(this._statusCode){
+                            case "220":{
+                                this._ControlChannel.write(`USER ${this.user}\r\n`);
+                                break;
+                            }
+                            case "331":{
+                                this._ControlChannel.write(`PASS ${this.password}\r\n`);
+                                break;
+                            }
+                            case "230":{
+                                this.emit("connect",230,this._statusMessage);
+                                break;
+                            }
+                            case "221":{
+                                if(!isTransferCmd(queue[0])){
+                                    queue[0].callback(null,{status:"221",message:this._statusMessage});
+                                    queue.shift();
+                                    if(queue.length){
+                                        execNext(this.dataChannel,this._ControlChannel,this._passive,queue,this.localSite)
+                                    }
+                                }
+                                break;
+                            }
+                            case "200":{
+                                if(!isTransferCmd(queue[0])){
+                                    queue[0].callback(null,{status:"200",message:this._statusMessage});
+                                    queue.shift();
+                                    if(queue.length){
+                                        execNext(this.dataChannel,this._ControlChannel,this._passive,queue,this.localSite)
+                                    }
+                                }
+                                break;
+                            }
+                            case "150":{
+                                if(!isTransferCmd(queue[0])){
+                                    queue[0].callback(null,{status:"150",message:this._statusMessage});
+                                    queue.shift();
+                                    if(queue.length){
+                                        execNext(this.dataChannel,this._ControlChannel,this._passive,queue,this.localSite)
+                                    }
+                                }else{
+                                    if(isPassive(this._passive)){
+                                        connectPassive(this.dataChannel,this._ControlChannel,this._passive,queue,this.localSite)
+                                    }
+                                }
+                                break;
+                            }
+                            case "250":{
+                                if(!isTransferCmd(queue[0])){
+                                    queue[0].callback(null,{status:"250",message:this._statusMessage});
+                                    queue.shift();
+                                    if(queue.length){
+                                        execNext(this.dataChannel,this._ControlChannel,this._passive,queue,this.localSite)
+                                    }
+                                }
+                                break;                    
+                            }
+                            case "257":{
+                                if(!isTransferCmd(queue[0])){
+                                    queue[0].callback(null,{status:"257",message:this._statusMessage});
+                                    queue.shift();
+                                    if(queue.length){
+                                        execNext(this.dataChannel,this._ControlChannel,this._passive,queue,this.localSite)
+                                    }
+                                }
+                                break;
+                            }
+                            case "227":{
+                                let temp = this._statusMessage.split(",");
+                                temp[0] = temp[0].split("(")[1].trim();
+                                temp[1] = temp[1].trim();
+                                temp[2] = temp[2].trim();
+                                temp[3] = temp[3].trim();
+                                temp[4] = temp[4].trim();
+                                temp[5] = temp[5].split(")")[0].trim();
+                                this._passive.active = true;
+                                this._passive.address = temp.slice(0,4).join(".");
+                                this._passive.port = parseInt(parseInt(temp[4]*256) + parseInt(temp[5]));
+                                if(!isTransferCmd(queue[0])){
+                                    queue[0].callback(null,{status:"227",message:this._statusMessage});
+                                    queue.shift();
+                                    if(queue.length){
+                                        execNext(this.dataChannel,this._ControlChannel,this._passive,queue,this.localSite);
+                                    }
+                                }
+                                break;
+                            }
+                            case "500":{
+                                if(!isTransferCmd(queue[0])){
+                                    queue[0].callback(null,{status:"500",message:this._statusMessage});
+                                    queue.shift();
+                                    if(queue.length){
+                                        execNext(this.dataChannel,this._ControlChannel,this._passive,queue,this.localSite)
+                                    }
+                                }
+                                break;
+                            }
+                            case "502":{
+                                if(!isTransferCmd(queue[0])){
+                                    queue[0].callback(null,{status:"502",message:this._statusMessage});
+                                    queue.shift();
+                                    if(queue.length){
+                                        execNext(this.dataChannel,this._ControlChannel,this._passive,queue,this.localSite)
+                                    }
+                                }
+                                break;
+                            }
+                            case "501":{
+                                if(!isTransferCmd(queue[0])){
+                                    queue[0].callback(null,{status:"501",message:this._statusMessage});
+                                    queue.shift();
+                                    if(queue.length){
+                                        execNext(this.dataChannel,this._ControlChannel,this._passive,queue,this.localSite)
+                                    }
+                                }
+                                break;
+                            }
+                            case "450":{
+                                if(!isTransferCmd(queue[0])){
+                                    queue[0].callback(null,{status:"450",message:this._statusMessage});
+                                    queue.shift();
+                                    if(queue.length){
+                                        execNext(this.dataChannel,this._ControlChannel,this._passive,queue,this.localSite)
+                                    }
+                                }
+                                break;
+                            }
+                            case "425":{
+                                if(!isTransferCmd(queue[0])){
+                                    queue[0].callback(null,{status:"425",message:this._statusMessage});
+                                    queue.shift();
+                                    if(queue.length){
+                                        execNext(this.dataChannel,this._ControlChannel,this._passive,queue,this.localSite)
+                                    }
+                                }
+                                break;
+                            }
+                            case "421":{
+                                if(!isTransferCmd(queue[0])){
+                                    queue[0].callback(null,{status:"421",message:this._statusMessage});
+                                    queue.shift();
+                                    if(queue.length){
+                                        execNext(this.dataChannel,this._ControlChannel,this._passive,queue,this.localSite)
+                                    }
+                                }
+                                break;
+                            }
+                            default:{
+                                this.emit("others",{status:this._statusCode,message:this._statusMessage})
+                            }           
+                        } 
+                })
+                this._ControlChannel.on("error",(err)=>{
+                    this.emit("connect",500,err);
+                })
+            }
         }
         catch(err){
             console.log(err);
         }
     }
     PORT(arg,callback){
-        if(typeof arg != "string"|| typeof callback != "function"){
+        if(typeof arg != "string" || typeof callback != "function"){
             callback("ERROR",null);
             process.exit();
         }
@@ -128,43 +228,31 @@ class FtpClient extends EventEmitter{
             callback("ERROR",null);
             process.exit();
         }
-
-        let tempFunc = (err,msg)=>{
-            this.off("_port",tempFunc);
-            callback(err,msg)
-        }
-        this.on("_port",tempFunc);
-        this._currentCmd.push("port");
-        this._ControlChannel.write(`PORT ${arg}\r\n`);
+        addToQueue(this.dataChannel,this._ControlChannel,this._passive,queue,{cmd:`PORT ${arg}\r\n`,callback,keyword:"PORT"},this.localSite)
+        
     }
    
 
     LIST(arg,callback){
-        if(typeof arg != "string"|| typeof callback != "function"){
+        if(typeof callback != "function"){
             callback("ERROR",null);
             process.exit();
         }
-
-        let tempFunc = (err,msg)=>{
-            this.off("_list",tempFunc);
-            callback(err,msg)
-        }
-        this.on("_list",tempFunc);
-        addToQueue(this._ControlChannel,`LIST ${arg}\r\n`,callback,this._passive); 
-        this._currentCmd.push("list");      
+        if(arg)
+        addToQueue(this.dataChannel,this._ControlChannel,this._passive,queue,{cmd:`LIST ${arg}\r\n`,callback,keyword:"LIST"},this.localSite);
+        else
+        addToQueue(this.dataChannel,this._ControlChannel,this._passive,queue,{cmd:`LIST\r\n`,callback,keyword:"LIST"},this.localSite);
+           
     }
     NLST(arg,callback){
-        if(typeof arg != "string" || typeof callback != "function"){
+        if(typeof callback != "function"){
             callback("ERROR",null);
             process.exit();
         }
-        let tempFunc = (err,msg)=>{
-            this.off("_nlst",tempFunc);
-            callback(err,msg)
-        }
-        this.on("_nlst",tempFunc);
-        addToQueue(this._ControlChannel,`NLST ${arg}\r\n`,callback,this._passive);
-        this._currentCmd.push("nlst");
+        if(arg)
+        addToQueue(this.dataChannel,this._ControlChannel,this._passive,queue,{cmd:`NLST ${arg}\r\n`,callback,keyword:"NLST"},this.localSite);
+        else
+        addToQueue(this.dataChannel,this._ControlChannel,this._passive,queue,{cmd:`NLST\r\n`,callback,keyword:"NLST"},this.localSite);
     }
 
     RETR(arg,callback){
@@ -172,13 +260,8 @@ class FtpClient extends EventEmitter{
             callback("ERROR",null);
             process.exit();
         }
-        let tempFunc = (err,msg)=>{
-            callback(err,msg)
-            this.off("_retr",tempFunc);
-        }
-        this.on("_retr",tempFunc);
-        addToQueue(this._ControlChannel,`RETR ${arg}\r\n`,callback,this._passive);
-        this._currentCmd.push("retr");
+        addToQueue(this.dataChannel,this._ControlChannel,this._passive,queue,{cmd:`RETR ${arg}\r\n`,callback,keyword:"RETR"},this.localSite);
+        
     }
     STOR(arg,callback){
         if(typeof arg != "string" || typeof callback != "function"){
@@ -189,17 +272,8 @@ class FtpClient extends EventEmitter{
             callback("ERROR",null);
             process.exit();
         }
-        let tempFunc = (err,msg)=>{
-            callback(err,msg)
-            this.off("_stor",tempFunc);
-        }
-        this.on("_stor",tempFunc);
-        arg.replace(/\\/g,"/")
-        let temp = arg.split("/");
-        temp = temp[temp.length-1];
-        console.log(arg,temp)
-        addToQueue(this._ControlChannel,`STOR ${temp}\r\n`,callback,this._passive,arg);
-        this._currentCmd.push("stor");
+        addToQueue(this.dataChannel,this._ControlChannel,this._passive,queue,{cmd:`STOR ${arg}\r\n`,callback,keyword:"STOR"},this.localSite);
+        
     }
     APPE(arg,callback){
         if(typeof arg != "string" || typeof callback != "function"){
@@ -210,16 +284,8 @@ class FtpClient extends EventEmitter{
             callback("ERROR",null);
             process.exit();
         }
-        let tempFunc = (err,msg)=>{
-            callback(err,msg)
-            this.off("_appe",tempFunc);
-        }
-        this.on("_appe",tempFunc);
-        arg.replace(/\\/g,"/")
-        let temp = arg.split("/");
-        temp = temp[temp.length-1];
-        addToQueue(this._ControlChannel,`APPE ${temp}\r\n`,callback,this._passive,arg);
-        this._currentCmd.push("appe");
+        addToQueue(this.dataChannel,this._ControlChannel,this._passive,queue,{cmd:`APPE ${arg}\r\n`,callback,keyword:"APPE"},this.localSite);
+        
     }
     STOU(arg,callback){
         if(typeof arg != "string" || typeof callback != "function"){
@@ -230,29 +296,16 @@ class FtpClient extends EventEmitter{
             callback("ERROR",null);
             process.exit();
         }
-        let tempFunc = (err,msg)=>{
-            callback(err,msg)
-            this.off("_stou",tempFunc);
-        }
-        this.on("_stou",tempFunc);
-        arg.replace(/\\/g,"/")
-        let temp = arg.split("/");
-        temp = temp[temp.length-1];
-        addToQueue(this._ControlChannel,`STOU ${temp}\r\n`,callback,this._passive,arg);
-        this._currentCmd.push("stou");
+        addToQueue(this.dataChannel,this._ControlChannel,this._passive,queue,{cmd:`STOU ${arg}\r\n`,callback,keyword:"STOU"},this.localSite);
+        
     }
     DEL(arg,callback){
         if(typeof arg != "string" || typeof callback != "function"){
             callback("ERROR",null);
             process.exit();
         }
-        let tempFunc = (err,msg)=>{
-            callback(err,msg)
-            this.off("_dele",tempFunc);
-        }
-        this.on("_dele",tempFunc);
-        this._currentCmd.push("dele");
-        this._ControlChannel.write(`DELE ${arg}`);
+        addToQueue(this.dataChannel,this._ControlChannel,this._passive,queue,{cmd:`DELE ${arg}\r\n`,callback,keyword:"DELE"},this.localSite);
+       
     }
 
     RMD(arg,callback){
@@ -260,91 +313,50 @@ class FtpClient extends EventEmitter{
             callback("ERROR",null);
             process.exit();
         }
-        let tempFunc = (err,msg)=>{
-            callback(err,msg)
-            this.off("_rmd",tempFunc);
-        }
-        this.on("_rmd",tempFunc);
-        this._currentCmd.push("rmd");
-        this._ControlChannel.write(`RMD ${arg}`);
+        addToQueue(this.dataChannel,this._ControlChannel,this._passive,queue,{cmd:`RMD ${arg}\r\n`,callback,keyword:"RMD"},this.localSite);
+     
     }
     PWD(callback){
         if(typeof callback != "function"){
             callback("ERROR",null);
             process.exit();
         }
-        let tempFunc = (err,msg)=>{
-            callback(err,msg)
-            this.off("_pwd",tempFunc);
-        }
-        this.on("_pwd",tempFunc);
-        this._currentCmd.push("pwd");
-        this._ControlChannel.write(`PWD\r\n`);
+        addToQueue(this.dataChannel,this._ControlChannel,this._passive,queue,{cmd:`PWD\r\n`,callback,keyword:"PWD"},this.localSite);
     }
     CWD(arg,callback){
         if(typeof arg != "string" || typeof callback != "function"){
             callback("ERROR",null);
             process.exit();
         }
-        let tempFunc = (err,msg)=>{
-            callback(err,msg)
-            this.off("_cwd",tempFunc);
-        }
-        this.on("_cwd",tempFunc);
-        this._currentCmd.push("cwd");
-        this._ControlChannel.write(`CWD ${arg}\r\n`);
+        addToQueue(this.dataChannel,this._ControlChannel,this._passive,queue,{cmd:`CWD ${arg}\r\n`,callback,keyword:"CWD"},this.localSite);
     }
     MKD(arg,callback){
         if(typeof arg != "string" || typeof callback != "function"){
             callback("ERROR",null);
             process.exit();
         }
-        let tempFunc = (err,msg)=>{
-            callback(err,msg)
-            this.off("_mkd",tempFunc);
-        }
-        this.on("_mkd",tempFunc);
-        this._currentCmd.push("mkd");
-        this._ControlChannel.write(`MKD ${arg}\r\n`);
+        addToQueue(this.dataChannel,this._ControlChannel,this._passive,queue,{cmd:`MKD ${arg}\r\n`,callback,keyword:"MKD"},this.localSite);
     }
     CDUP(callback){
         if(typeof callback != "function"){
             callback("ERROR",null);
             process.exit();
         }
-        let tempFunc = (err,msg)=>{
-            callback(err,msg)
-            this.off("_cdup",tempFunc);
-        }
-        this.on("_cdup",tempFunc);
-        this._currentCmd.push("cdup");
-        this._ControlChannel.write(`CDUP\r\n`);
+        addToQueue(this.dataChannel,this._ControlChannel,this._passive,queue,{cmd:`CDUP\r\n`,callback,keyword:"CDUP"},this.localSite);
     }
     RNFR(arg,callback){
         if(typeof arg != "string" || typeof callback != "function"){
             callback("ERROR",null);
             process.exit();
         }
-        let tempFunc = (err,msg)=>{
-            callback(err,msg)
-            this.off("_rnfr",tempFunc);
-        }
-        this.on("_rnfr",tempFunc);
-        this._currentCmd.push("rnfr");
-        this._ControlChannel.write(`RNFR ${arg}\r\n`);
+        addToQueue(this.dataChannel,this._ControlChannel,this._passive,queue,{cmd:`RNFR ${arg}\r\n`,callback,keyword:"RNFR"},this.localSite);
     }
     RNTO(arg,callback){
         if(typeof arg != "string" || typeof callback != "function"){
             callback("ERROR",null);
             process.exit();
         }
-        let tempFunc = (err,msg)=>{
-            callback(err,msg)
-            this.off("_rnto",tempFunc);
-        }
-        this.on("_rnto",tempFunc);
-        this._currentCmd.push("rnto");
-        this._ControlChannel.write(`RNTO ${arg}\r\n`);
+        addToQueue(this.dataChannel,this._ControlChannel,this._passive,queue,{cmd:`RNTO ${arg}\r\n`,callback,keyword:"RNTO"},this.localSite);
     }
 
     PASV(callback){
@@ -352,26 +364,14 @@ class FtpClient extends EventEmitter{
             callback("ERROR",null);
             process.exit();
         }
-        let tempFunc = (err,msg)=>{
-            callback(err,msg)
-            this.off("_pasv",tempFunc);
-        }
-        this.on("_pasv",tempFunc);
-        this._currentCmd.push("pasv");
-        this._ControlChannel.write(`PASV\r\n`);
+        addToQueue(this.dataChannel,this._ControlChannel,this._passive,queue,{cmd:`PASV\r\n`,callback,keyword:"PASV"},this.localSite);
     }
     TYPE(arg,callback){
         if(typeof arg != "string" || typeof callback != "function"){
             callback("ERROR",null);
             process.exit();
         }
-        let tempFunc = (err,msg)=>{
-            callback(err,msg)
-            this.off("_type",tempFunc);
-        }
-        this.on("_type",tempFunc);
-        this._ControlChannel.write(`TYPE ${arg}\r\n`);
-        this._currentCmd.push("type");
+        addToQueue(this.dataChannel,this._ControlChannel,this._passive,queue,{cmd:`TYPE ${arg}\r\n`,callback,keyword:"TYPE"},this.localSite);
     }
 
     SYST(callback){
@@ -379,51 +379,25 @@ class FtpClient extends EventEmitter{
             callback("ERROR",null);
             process.exit();
         }
-        let tempFunc = (err,msg)=>{
-            callback(err,msg)
-            this.off("_syst",tempFunc);
-        }
-        this.on("_syst",tempFunc);
-        this._ControlChannel.write(`SYST\r\n`);
-        this._currentCmd.push("syst");
+        addToQueue(this.dataChannel,this._ControlChannel,this._passive,queue,{cmd:`SYST\r\n`,callback,keyword:"SYST"},this.localSite);
     }
     STAT(arg,callback){
         if(typeof arg != "string" || typeof callback != "function"){
             callback("ERROR",null);
             process.exit();
         }
-        let tempFunc = (err,msg)=>{
-            callback(err,msg)
-            this.off("_stat",tempFunc);
-        }
-        this.on("_stat",tempFunc);
-        this._ControlChannel.write(`STAT ${arg}\r\n`);
-        this._currentCmd.push("stat");
+        addToQueue(this.dataChannel,this._ControlChannel,this._passive,queue,{cmd:`STAT ${arg}\r\n`,callback,keyword:"STAT"},this.localSite);
+      
     }
-    ACTIVE(){
-        this._passive.active = false;
+    QUIT(callback){
+        if(typeof callback != "function"){
+            callback("ERROR",null);
+            process.exit();
+        }
+        addToQueue(this.dataChannel,this._ControlChannel,this._passive,queue,{cmd:`QUIT\r\n`,callback,keyword:"QUIT"},this.localSite);
     }
 
 
 }
 
-const c = new FtpClient();
-c.on("ready",(code,m)=>{
-    c.PORT("127,0,0,1,11,184",(err,res)=>{
-        console.log("port"+res);
-    })
-    c.PWD((err,msg)=>{
-        console.log("pwd"+msg)
-    })
-    c.NLST("folder name",(err,list)=>{
-        console.log(err,list)
-    })
-    c.RETR("app.html",(err,socket)=>{
-        console.log(err,socket);
-    })
-    c.APPE("E:/project/ftp-for-node/client/abc.js",(err,socket)=>{
-        console.log(err,socket);
-    })
-
-})
-c.connect();
+module.exports = FtpClient;

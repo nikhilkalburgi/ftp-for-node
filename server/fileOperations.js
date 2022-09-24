@@ -1,14 +1,14 @@
 const fs = require("fs");
 const net = require("net");
 const d = new Date();
-function connectToClient(ftpSocket,address,port,content,passive,passiveDetails,type,retr=false){
+function connectToClient(ftpSocket,address,port,content,passive,passiveDetails,type,retr=false,makeItActive){
     try{
         if(!content){
             ftpSocket.write("450 Requested file action not taken\r\n");
             return;
         }
     
-        if(!address && !port){
+        if(!address && !port && !passive){
             console.error("Address or port in not correct.");
             ftpSocket.write("502 Command not implemented\r\n");
             return;
@@ -29,6 +29,7 @@ function connectToClient(ftpSocket,address,port,content,passive,passiveDetails,t
                         ftpSocket.write("425 Can't open data connection\r\n");
                     })
                     dataServer.close();
+                    makeItActive();
                 })
                 dataServer.on("error",(err)=>{
                     console.log(err);
@@ -48,10 +49,10 @@ function connectToClient(ftpSocket,address,port,content,passive,passiveDetails,t
                 }
                 ftpSocket.write("226 Closing data connection\r\n");
     
-                socket.on("error",(err)=>{
-                    console.log(err);
-                    ftpSocket.write("425 Can't open data connection\r\n");
-                })
+            })
+            socket.on("error",(err)=>{
+                console.log(err);
+                ftpSocket.write("425 Can't open data connection\r\n");
             })
             socket.setEncoding((type == 'A')?"utf8":null);
         }
@@ -62,7 +63,7 @@ function connectToClient(ftpSocket,address,port,content,passive,passiveDetails,t
     }
 }
 
-function handleStor(ftpSocket,args,connectedUser,address,port,passive,passiveDetails,type){
+function handleStor(ftpSocket,args,connectedUser,address,port,passive,passiveDetails,type,makeItActive){
 try{
     if(!args.length){
             ftpSocket.write("501 Syntax error in parameters or argument\r\n");
@@ -84,7 +85,7 @@ try{
             console.log(err)
             ftpSocket.write("502 Command not implemented\r\n");
     })
-    connectToClient(ftpSocket,address,port,content,passive,passiveDetails,type);
+    connectToClient(ftpSocket,address,port,content,passive,passiveDetails,type,false,makeItActive);
 }
 catch(err){
     console.log(err);
@@ -94,7 +95,7 @@ catch(err){
 
 }
 
-function handleRetr(ftpSocket,args,connectedUser,address,port,passive,passiveDetails,type){
+function handleRetr(ftpSocket,args,connectedUser,address,port,passive,passiveDetails,type,makeItActive){
     try{
 
         if(!args.length){
@@ -122,7 +123,7 @@ function handleRetr(ftpSocket,args,connectedUser,address,port,passive,passiveDet
             ftpSocket.write("501 Syntax error in parameters or argument\r\n");
             return;
         }
-        connectToClient(ftpSocket,address,port,content,passive,passiveDetails,type,true);
+        connectToClient(ftpSocket,address,port,content,passive,passiveDetails,type,true,makeItActive);
     }
     catch(err){
         console.log(err);
@@ -163,7 +164,7 @@ catch(err){
     
 }
 
-function handleAppe(ftpSocket,args,connectedUser,address,port,passive,passiveDetails,type){
+function handleAppe(ftpSocket,args,connectedUser,address,port,passive,passiveDetails,type,makeItActive){
 try{
     if(!args.length){
         ftpSocket.write("501 Syntax error in parameters or argument\r\n");
@@ -185,7 +186,7 @@ try{
         console.log(err)
         ftpSocket.write("502 Command not implemented\r\n");
     })
-    connectToClient(ftpSocket,address,port,content,passive,passiveDetails,type);
+    connectToClient(ftpSocket,address,port,content,passive,passiveDetails,type,false,makeItActive);
 }
 catch(err){
     console.log(err);
@@ -194,7 +195,7 @@ catch(err){
    
 }
 
-function handleStou(ftpSocket,args,connectedUser,address,port,passive,passiveDetails,type){
+function handleStou(ftpSocket,args,connectedUser,address,port,passive,passiveDetails,type,makeItActive){
   try{
     if(!args.length){
         ftpSocket.write("501 Syntax error in parameters or argument\r\n");
@@ -216,7 +217,7 @@ function handleStou(ftpSocket,args,connectedUser,address,port,passive,passiveDet
         console.log(err)
         ftpSocket.write("502 Command not implemented\r\n");
     })
-    connectToClient(ftpSocket,address,port,content,passive,passiveDetails,type);
+    connectToClient(ftpSocket,address,port,content,passive,passiveDetails,type,false,makeItActive);
   }  
   catch(err){
     console.log(err);

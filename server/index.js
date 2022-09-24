@@ -26,7 +26,7 @@ class FtpServer{
             console.log("Error : Invalid Type");
             return false;
         }
-        if(typeof this.passive.active != "boolean" || typeof this.passive.address != "string" || typeof this.passive.port != "number"){
+        if(typeof this.passive.active != "boolean"){
             console.log("Error : Invalid Type");
             return false;
         }
@@ -76,6 +76,9 @@ class FtpServer{
                     var connectedUser = null;
                     var type = 'A';
                     var passive = false;
+                    function makeItActive(){
+                        passive = false;
+                    }
                     var originalPWD = this.defaultPWD;
                     ftpSocket.write("220 Service ready for new user\r\n")
         
@@ -84,7 +87,6 @@ class FtpServer{
                         command = parsedData[0].replace("\r\n","").toUpperCase();
                         args = parsedData.slice(1);
                         args = args.map((value)=>{return value.replace("\r\n","").trim()})
-                        console.log(command,args);
                         switch(command){
                             case "USER":{
                                 connectedUser = handleUser(ftpSocket,args,this.userDetails,this.defaultPWD);
@@ -112,13 +114,13 @@ class FtpServer{
                                 break;
                             }
                             case "NLST":{
-                                handleNlist(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,this.passive,type);
+                                handleNlist(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,this.passive,type,makeItActive);
                                 command = null;
                                 args = [];
                                 break;
                             }
                             case "LIST":{
-                                handleList(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,this.passive,type);
+                                handleList(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,this.passive,type,makeItActive);
                                 command = null;
                                 args = [];
                                 break;
@@ -244,13 +246,13 @@ class FtpServer{
                                 break;
                             }
                             case "STOR":{
-                                handleStor(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,this.passive,type);
+                                handleStor(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,this.passive,type,makeItActive);
                                 command = null;
                                 args = [];
                                 break;
                             }
                             case "RETR":{
-                                handleRetr(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,this.passive,type);
+                                handleRetr(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,this.passive,type,makeItActive);
                                 command = null;
                                 args = [];
                                 break;
@@ -274,13 +276,13 @@ class FtpServer{
                                 break;
                             }
                             case "APPE":{
-                                handleAppe(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,this.passive,type);
+                                handleAppe(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,this.passive,type,makeItActive);
                                 command = null;
                                 args = [];
                                 break;
                             }
                             case "STOU":{
-                                handleStou(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,this.passive,type);
+                                handleStou(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,this.passive,type,makeItActive);
                                 command = null;
                                 args = [];
                                 break;
@@ -312,7 +314,7 @@ class FtpServer{
                         if(error){
                             console.log("Socket had a transmission error")                    
                         }else{
-                            console.log("Connection Closed by "+connectedUser.name) 
+                            console.log("Connection Closed.") ;
                         }
                         ftpSocket.write("502 Command not implemented\r\n");
                     })

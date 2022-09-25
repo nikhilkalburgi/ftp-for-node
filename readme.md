@@ -4,7 +4,7 @@
 ## To Install
 `npm install --save ftp-for-node`
 
----
+
 
 ## Examples
 
@@ -119,7 +119,7 @@ server.initiateFtpServer();
 #### QUIT(callback(err,msg))
     Close Control Channel
 
----
+
 
 ## Server Features
 
@@ -132,5 +132,5 @@ server.initiateFtpServer();
 
 
 **TO INIT**
-#### initiateServer()
+#### initiateFtpServer()()
 

@@ -47,10 +47,17 @@ try{
          if(args[0][args[0].length-2] == '/' || args[0][args[0].length-2] == '\\')
          args[0].pop();  
       }
-
+      originalPWD = originalPWD.replace(/\\/g,"/");
+      originalPWD = originalPWD.split("");
+      if(originalPWD.length > 1){
+         if(originalPWD[originalPWD.length-1] == '/' || originalPWD[originalPWD.length-1] == '\\')
+         originalPWD.pop();
+         if(originalPWD[originalPWD.length-2] == '/' || originalPWD[originalPWD.length-2] == '\\')
+         originalPWD.pop();  
+      }
+      originalPWD = originalPWD.join("");
          
       args[0] = args[0].join("");
-
       if(fs.existsSync(args[0]) && fs.statSync(args[0]).isDirectory() && (args[0].startsWith(originalPWD) || args[0] == originalPWD)){
             connectedUser.pwd = args[0];
             ftpSocket.write("250 Requested file action okay, completed\r\n");

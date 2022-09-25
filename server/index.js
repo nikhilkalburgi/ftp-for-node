@@ -26,12 +26,12 @@ class FtpServer{
             console.log("Error : Invalid Type");
             return false;
         }
-        if(typeof this.passive.active != "boolean"){
+        if(typeof this.passive.active != "boolean" || typeof this.passive.address != "string" || typeof this.passive.port != "number"){
             console.log("Error : Invalid Type");
             return false;
         }
-        for (let user in this.userDetails){
-            user.pwd = user.pwd.replaceAll("\\","/");
+        for (let user of this.userDetails){
+            user.pwd = user.pwd.replace(/"\\"/g,"/");
             user.pwd = user.pwd.split("");
             if(user.pwd[user.pwd.length-1] == '/')
             user.pwd.pop();
@@ -90,6 +90,7 @@ class FtpServer{
                         switch(command){
                             case "USER":{
                                 connectedUser = handleUser(ftpSocket,args,this.userDetails,this.defaultPWD);
+                                if(connectedUser && connectedUser.pwd)
                                 originalPWD = connectedUser.pwd;
                                 command = null;
                                 args = [];

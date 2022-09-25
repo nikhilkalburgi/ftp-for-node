@@ -39,7 +39,6 @@ class FtpClient extends EventEmitter{
             this.localSite.push("/");
         }   
         this.localSite = this.localSite.join("");
-        console.log(this.localSite);
         return true;
     }
 

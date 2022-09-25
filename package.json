@@ -1,0 +1,14 @@
+{
+    "name":"ftp-for-node",
+    "version":"1.0.0",
+    "description":"A basic ftp client and server for nodejs that helps to make the transfer of files easier.",
+    "author":"Nikhil S Kalburgi <nikhilsk2001@gmail.com>",
+    "repository":{
+        "type":"git",
+        "url":"https://www.github.com/nikhilkalburgi/ftp-for-node.git"
+    },
+    "bugs":{
+        "url":"https://www.github.com/nikhilkalburgi/ftp-for-node.git/issues"
+    },
+    "homepage":"https://www.github.com/nikhilkalburgi/ftp-for-node.git#readme"
+}

@@ -1,4 +1,5 @@
 var fs = require("fs");
+var path = require("path");
 function handlePwd(ftpSocket,args,connectedUser){
    try{
       if(args.length){
@@ -9,7 +10,7 @@ function handlePwd(ftpSocket,args,connectedUser){
          ftpSocket.write("550 Requested action not taken\r\n");
          return;
       }else{
-         if(fs.existsSync(connectedUser.pwd))
+         if(fs.existsSync(path.normalize(connectedUser.pwd)))
          ftpSocket.write('257 "'+connectedUser.pwd+'"\r\n');
          else
          ftpSocket.write("550 Requested action not taken\r\n");
@@ -56,8 +57,12 @@ try{
          originalPWD.pop();  
       }
       originalPWD = originalPWD.join("");
+      originalPWD = path.normalize(originalPWD);
          
-      args[0] = args[0].join("");
+      args[0] = path.normalize(args[0].join(""));
+      if(!path.isAbsolute(args[0])){
+         args[0] = (connectedUser && connectedUser.pwd)? path.normalize(`${connectedUser.pwd}/${args[0]}`):path.normalize(`${originalPWD}/${args[0]}`)
+      }
       if(fs.existsSync(args[0]) && fs.statSync(args[0]).isDirectory() && (args[0].startsWith(originalPWD) || args[0] == originalPWD)){
             connectedUser.pwd = args[0];
             ftpSocket.write("250 Requested file action okay, completed\r\n");
@@ -79,8 +84,8 @@ try{
          ftpSocket.write("501 Syntax error in parameters or argument\r\n");
          return;
    }
-   fs.mkdirSync(`${connectedUser.pwd}/${args[0]}`);
-   ftpSocket.write('257 "'+`${connectedUser.pwd}/${args[0]}`+'" created\r\n')
+   fs.mkdirSync(path.normalize(`${connectedUser.pwd}/${args[0]}`));
+   ftpSocket.write('257 "'+path.normalize(`${connectedUser.pwd}/${args[0]}`)+'" created\r\n')
       return;
 }
 catch(err){
@@ -95,8 +100,8 @@ function handleRmd(ftpSocket,args,connectedUser){
             ftpSocket.write("501 Syntax error in parameters or argument\r\n");
             return;
          }
-         if(fs.existsSync(`${connectedUser.pwd}/${args[0]}`)){
-            fs.rmdirSync(`${connectedUser.pwd}/${args[0]}`);
+         if(fs.existsSync(path.normalize(`${connectedUser.pwd}/${args[0]}`))){
+            fs.rmdirSync(path.normalize(`${connectedUser.pwd}/${args[0]}`));
             ftpSocket.write("250 Requested file action okay, completed\r\n");
          }else{
             ftpSocket.write("550 Requested action not taken\r\n");
@@ -142,8 +147,8 @@ function handleRnfr(ftpSocket,args,connectedUser){
          ftpSocket.write("501 Syntax error in parameters or argument\r\n");
          return;
       }
-      if(fs.existsSync(`${connectedUser.pwd}/${args[0]}`)){
-         oldName = `${connectedUser.pwd}/${args[0]}`;
+      if(fs.existsSync(path.normalize(`${connectedUser.pwd}/${args[0]}`))){
+         oldName = path.normalize(`${connectedUser.pwd}/${args[0]}`);
          ftpSocket.write("250 Requested file action okay, completed\r\n");
       }else{
          ftpSocket.write("550 Requested action not taken\r\n");
@@ -162,7 +167,7 @@ function handleRnto(ftpSocket,args,connectedUser){
          ftpSocket.write("501 Syntax error in parameters or argument\r\n");
          return;
       }
-      fs.renameSync(oldName,`${connectedUser.pwd}/${args[0]}`);
+      fs.renameSync(oldName,path.normalize(`${connectedUser.pwd}/${args[0]}`));
       ftpSocket.write("250 Requested file action okay, completed\r\n");
    }
    catch(err){

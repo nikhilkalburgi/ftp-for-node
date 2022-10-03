@@ -1,6 +1,8 @@
 const net = require("net");
 const fs = require("fs");
 const os = require("os");
+const tls = require("tls");
+const path = require("path");
 const {handleUser,handlePassword} = require("./authorization.js");
 const {handleNlist,handleList,emptyFiles} = require("./list.js");
 const {handleCwd,handleMkd,handlePwd,handleRmd,handleCdup,handleRnfr,handleRnto} = require("./dirOperations.js");
@@ -16,7 +18,11 @@ class FtpServer{
         this.passive = {
             active : true,
             address : "127.0.0.1",
-            port : 40000
+            port : 40001
+        }
+        this.secureOptions = {
+            key : null,
+            cert : null
         }
         this.defaultPWD = null;
     }
@@ -31,18 +37,20 @@ class FtpServer{
             return false;
         }
         for (let user of this.userDetails){
+            if(typeof user.name != "string" || typeof user.password != "string" || typeof user.pwd != "string"){
+                console.log("Error : User details Invalid.");
+                return false;
+            }
             user.pwd = user.pwd.replace(/"\\"/g,"/");
             user.pwd = user.pwd.split("");
             if(user.pwd[user.pwd.length-1] == '/')
             user.pwd.pop();
             if(user.pwd[user.pwd.length-2] == '/')
             user.pwd.pop();   
-            user.pwd = user.pwd.join("");
+            user.pwd = path.normalize(user.pwd.join(""));
             if(fs.existsSync(user.pwd)){
             if( process.platform == "win32" && user.pwd.indexOf('/') != 0 && user.pwd.indexOf('./') != 0){
-            return true;
             }else if(process.platform != "win32" && user.pwd.indexOf('/') == 0 && user.pwd.indexOf('./') != 0){
-                        return true;
             }else{
                 console.log("Error : The PWD is Invalid.");
                 return false;
@@ -56,6 +64,7 @@ class FtpServer{
             console.log("Error : The defaultPWD is NIL.");
             return false;
         }else{
+            this.defaultPWD = path.normalize(this.defaultPWD);
         if(!fs.existsSync(this.defaultPWD)){
             console.log("Error : The defaultPWD is Invalid.");
             return false;
@@ -76,13 +85,14 @@ class FtpServer{
                     var connectedUser = null;
                     var type = 'A';
                     var passive = false;
+                    var auth = false;
                     function makeItActive(){
                         passive = false;
                     }
                     var originalPWD = this.defaultPWD;
                     ftpSocket.write("220 Service ready for new user\r\n")
-        
-                    ftpSocket.on("data",(data)=>{
+
+                    function handleData(data){
                         let parsedData = data.split(" ");
                         command = parsedData[0].replace("\r\n","").toUpperCase();
                         args = parsedData.slice(1);
@@ -115,13 +125,13 @@ class FtpServer{
                                 break;
                             }
                             case "NLST":{
-                                handleNlist(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,this.passive,type,makeItActive);
+                                handleNlist(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,this.passive,type,makeItActive,auth,this.secureOptions);
                                 command = null;
                                 args = [];
                                 break;
                             }
                             case "LIST":{
-                                handleList(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,this.passive,type,makeItActive);
+                                handleList(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,this.passive,type,makeItActive,auth,this.secureOptions);
                                 command = null;
                                 args = [];
                                 break;
@@ -247,13 +257,13 @@ class FtpServer{
                                 break;
                             }
                             case "STOR":{
-                                handleStor(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,this.passive,type,makeItActive);
+                                handleStor(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,this.passive,type,makeItActive,auth,this.secureOptions);
                                 command = null;
                                 args = [];
                                 break;
                             }
                             case "RETR":{
-                                handleRetr(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,this.passive,type,makeItActive);
+                                handleRetr(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,this.passive,type,makeItActive,auth,this.secureOptions);
                                 command = null;
                                 args = [];
                                 break;
@@ -277,13 +287,13 @@ class FtpServer{
                                 break;
                             }
                             case "APPE":{
-                                handleAppe(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,this.passive,type,makeItActive);
+                                handleAppe(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,this.passive,type,makeItActive,auth,this.secureOptions);
                                 command = null;
                                 args = [];
                                 break;
                             }
                             case "STOU":{
-                                handleStou(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,this.passive,type,makeItActive);
+                                handleStou(ftpSocket,args,connectedUser,remoteAddress,remotePort,passive,this.passive,type,makeItActive,auth,this.secureOptions);
                                 command = null;
                                 args = [];
                                 break;
@@ -300,10 +310,47 @@ class FtpServer{
                                 args = [];
                                 break;
                             }
+                            case "AUTH":{
+                                if(!args.length && args[0].toLowerCase() != 'tls'){
+                                    ftpSocket.write("500 Syntax error, command unrecognized\r\n");
+                                    break;
+                                }
+                                if(typeof this.secureOptions != 'object'){
+                                    ftpSocket.write("421 Service not available\r\n");
+                                    break;
+                                }
+                                if(!this.secureOptions.key || !this.secureOptions.cert){
+                                    ftpSocket.write("421 Service not available\r\n");
+                                    break;
+                                }
+                                ftpSocket.write("254 Initializing TLS Connection\r\n");
+                                ftpSocket.removeAllListeners('data');
+                                ftpSocket.removeAllListeners('error');
+                                ftpSocket = new tls.TLSSocket(ftpSocket,{isServer:true,server:ftpServer,secureContext:tls.createSecureContext({
+                                    key: this.secureOptions.key,
+                                    cert: this.secureOptions.cert,
+                                })})
+                                auth = true;
+                                ftpSocket.setEncoding('utf8');
+                                ftpSocket.on("data",(data)=>{
+                                    handleData.call(this,data)
+                                })
+                                ftpSocket.on("error",(error)=>{
+                                    auth = false;
+                                    console.log(error);
+                                    ftpSocket.write("502 Command not implemented\r\n");
+                                })
+                                break;
+
+                            }
                             default:{
                                 ftpSocket.write("421 Service not available\r\n");
                             }
                         }
+                    }
+        
+                    ftpSocket.on("data",(data)=>{
+                        handleData.call(this,data)
                     })
         
                     ftpSocket.on("error",(error)=>{

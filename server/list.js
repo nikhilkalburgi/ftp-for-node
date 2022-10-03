@@ -1,12 +1,14 @@
 const net = require("net");
+const tls = require("tls");
 const fs = require("fs");
+let dataServer = null;
 
 files = {}
 
 function emptyFiles(connectedUser){
     delete files[connectedUser.name];
 }
-function connectToClient(ftpSocket,address,port,content,passive,passiveDetails,type,makeItActive){
+function connectToClient(ftpSocket,address,port,content,passive,passiveDetails,type,makeItActive,auth,secureOptions){
 
     try{
         if(!content){
@@ -14,7 +16,7 @@ function connectToClient(ftpSocket,address,port,content,passive,passiveDetails,t
         return;
      }
      if(!Array.isArray(content)){
-        content = `${content.name} ${content.size}\n`;
+        content = `${content.mode} ${content.uid} ${content.gid} ${content.size} ${content.mtimeMs} ${content.name}\n`;
      }else{
         content = content.join("\n") + '\n';
      }
@@ -26,41 +28,65 @@ function connectToClient(ftpSocket,address,port,content,passive,passiveDetails,t
         ftpSocket.write("502 Command not implemented\r\n");
         return;
      }
-     ftpSocket.write("150 File status okay; about to open data connection.\r\n");
      if(passive){
          if(passiveDetails.active){
-             const dataServer = net.createServer((sock)=>{
-                makeItActive();
-                sock.write(content);
-                ftpSocket.write("226 Closing data connection\r\n");
-                sock.end();
-                sock.on("error",(err)=>{
+             if(dataServer)dataServer.close();
+             if(auth){
+                 dataServer = tls.createServer(secureOptions,(sock)=>{
+                     handleSocket(sock,dataServer)
+                });
+                 dataServer.on("error",(err)=>{
                     console.log(err);
                     ftpSocket.write("425 Can't open data connection\r\n");
                 })
-                dataServer.close();
+                
+                dataServer.listen(passiveDetails.port);
+            }else{
+                    
+                dataServer = net.createServer((sock)=>{
+                    handleSocket(sock,dataServer)
+                })
+                    dataServer.on("error",(err)=>{
+                        console.log(err);
+                        ftpSocket.write("425 Can't open data connection\r\n");
+                    })
+                    dataServer.listen(passiveDetails.port);
+                }
+                function handleSocket(sock,dataServer){
+                    makeItActive();
+                    sock.write(content);
+                    ftpSocket.write("226 Closing data connection\r\n");
+                    sock.end();
+                    dataServer.close();
+                    dataServer = null;
+                    sock.on("error",(err)=>{
+                        console.log(err);
+                        ftpSocket.write("425 Can't open data connection\r\n");
+                    })
+                }
+            }else{
+                ftpSocket.write("421 Service not available\r\n")
+            }
+        }else{
+            let medium = null;
+            if(auth){
+                medium = tls.connect;
+            }else{
+                medium = net.createConnection;
+            }
+            let socket = medium({port:port,host:address,rejectUnauthorized:false},()=>{
+                console.log(`Connected to ${address}:${port}`);
+                socket.write(content);
+                ftpSocket.write("226 Closing data connection\r\n");
+                socket.end();
+                
             })
-            dataServer.on("error",(err)=>{
+            socket.on("error",(err)=>{
                 console.log(err);
                 ftpSocket.write("425 Can't open data connection\r\n");
             })
-            dataServer.listen(passiveDetails.port);
-        }else{
-            ftpSocket.write("421 Service not available\r\n")
         }
-     }else{
-            let socket = net.createConnection({port:port,host:address},()=>{
-            console.log(`Connected to ${address}:${port}`);
-            socket.write(content);
-            ftpSocket.write("226 Closing data connection\r\n");
-            socket.end();
-
-        })
-        socket.on("error",(err)=>{
-            console.log(err);
-            ftpSocket.write("425 Can't open data connection\r\n");
-        })
-     }
+        ftpSocket.write("150 File status okay; about to open data connection.\r\n");
     }
     catch(err){
         console.log(err);
@@ -69,7 +95,7 @@ function connectToClient(ftpSocket,address,port,content,passive,passiveDetails,t
     
 }
 
-function handleNlist(ftpSocket,args,connectedUser,address,port,passive,passiveDetails,type,makeItActive){
+function handleNlist(ftpSocket,args,connectedUser,address,port,passive,passiveDetails,type,makeItActive,auth,secureOptions){
 
     try{
         if(!(connectedUser.user + "nlist" in files)){
@@ -80,7 +106,7 @@ function handleNlist(ftpSocket,args,connectedUser,address,port,passive,passiveDe
         if(!connectedUser.pwd){
             ftpSocket.write("502 Command not implemented\r\n");    
         }else{
-            connectToClient(ftpSocket,address,port,files[connectedUser.name + "nlist"],passive,passiveDetails,type,makeItActive)
+            connectToClient(ftpSocket,address,port,files[connectedUser.name + "nlist"],passive,passiveDetails,type,makeItActive,auth,secureOptions)
         }
     }else{
         if(pathname.indexOf('/') == 0 || pathname.indexOf('./') == 0 || pathname.indexOf('\\') == 0 || pathname.indexOf('.\\') == 0){
@@ -98,7 +124,7 @@ function handleNlist(ftpSocket,args,connectedUser,address,port,passive,passiveDe
             }else{
                 content = fs.readdirSync(`${connectedUser.pwd}/${pathname}`);
             }
-            connectToClient(ftpSocket,address,port,content,passive,passiveDetails,type,makeItActive);
+            connectToClient(ftpSocket,address,port,content,passive,passiveDetails,type,makeItActive,auth,secureOptions);
         }else{
             ftpSocket.write("501 Syntax error in parameters or argument\r\n");
         }
@@ -111,7 +137,7 @@ function handleNlist(ftpSocket,args,connectedUser,address,port,passive,passiveDe
     
 }
 
-function handleList(ftpSocket,args,connectedUser,address,port,passive,passiveDetails,type,makeItActive){
+function handleList(ftpSocket,args,connectedUser,address,port,passive,passiveDetails,type,makeItActive,auth,secureOptions){
     try{
         if(!(connectedUser.user+"list" in files)){
         files[connectedUser.name + "list"] = fs.readdirSync(connectedUser.pwd+'/');
@@ -130,7 +156,7 @@ function handleList(ftpSocket,args,connectedUser,address,port,passive,passiveDet
         if(!connectedUser.pwd){
             ftpSocket.write("502 Command not implemented\r\n");    
         }else{
-            connectToClient(ftpSocket,address,port,files[connectedUser.name + "list"],passive,passiveDetails,type,makeItActive)
+            connectToClient(ftpSocket,address,port,files[connectedUser.name + "list"],passive,passiveDetails,type,makeItActive,auth,secureOptions)
         }
     }else{
         if(pathname.indexOf('/') == 0 ||pathname.indexOf('./') == 0 || pathname.indexOf('\\') == 0 || pathname.indexOf('.\\') == 0){
@@ -154,7 +180,7 @@ function handleList(ftpSocket,args,connectedUser,address,port,passive,passiveDet
                 }
                 content = fix.slice();
             }
-            connectToClient(ftpSocket,address,port,content,passive,passiveDetails,type,makeItActive);
+            connectToClient(ftpSocket,address,port,content,passive,passiveDetails,type,makeItActive,auth,secureOptions);
         }else{
             ftpSocket.write("501 Syntax error in parameters or argument\r\n");
         }

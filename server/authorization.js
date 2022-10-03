@@ -4,14 +4,16 @@ function handleUser(ftpSocket,args,userDetails,defaultPWD){
         ftpSocket.end("501 Syntax error in parameters or argument\r\n");
         return;
     }
-    let username = args[0],connectedUser = null;
+    let username = args[0],connectedUser = {};
     users = userDetails.map(value=>value.name);
     if(!userDetails.length){
         connectedUser = {name:"ftp",pwd:defaultPWD};
         ftpSocket.write("230 User logged in, proceed\r\n");    
     }else{
         if(users.includes(username)){
-            connectedUser = userDetails[users.indexOf(username)];
+            connectedUser.name = userDetails[users.indexOf(username)].name;
+            connectedUser.password = userDetails[users.indexOf(username)].password;
+            connectedUser.pwd = userDetails[users.indexOf(username)].pwd;
             ftpSocket.write("331 User name okay, need password\r\n");
         }else{
             ftpSocket.write("332 Need account for login\r\n");

@@ -15,7 +15,6 @@ function connectToClient(ftpSocket,address,port,content,passive,passiveDetails,t
             ftpSocket.write("502 Command not implemented\r\n");
             return;
         }
-        ftpSocket.write("150 File status okay; about to open data connection.\r\n");
         if(passive){
             if(passiveDetails.active){
                 if(auth){
@@ -77,6 +76,7 @@ function connectToClient(ftpSocket,address,port,content,passive,passiveDetails,t
                 ftpSocket.write("425 Can't open data connection\r\n");
             })
             socket.setEncoding((type == 'A')?"utf8":null);
+            ftpSocket.write("150 File status okay; about to open data connection.\r\n");
         }
     }
     catch(err){

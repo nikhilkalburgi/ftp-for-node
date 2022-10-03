@@ -24,21 +24,21 @@ ftp.on("connect",(code,msg)=>{
     ftp.PWD((err,pwd)=>{
         console.log(err,pwd);
     })
-    ftp.PASV((err,msg)=>{
-        console.log(err,msg);
-    })
-    ftp.AUTH('tls',(err,msg)=>{
-        console.log(err,msg)
-    })
+    // ftp.PASV((err,msg)=>{
+    //     console.log(err,msg);
+    // })
+    // ftp.AUTH('tls',(err,msg)=>{
+    //     console.log(err,msg)
+    // })
     ftp.NLST('./package.json',(err,msg)=>{
         console.log(err,msg)
     })
-    ftp.LIST('./package.json',(err,msg)=>{
-        console.log(err,msg)
-    })
-    ftp.STOR("package.json",(err,msg)=>{
-        console.log(err,msg);
-    })
+    // ftp.LIST('./package.json',(err,msg)=>{
+    //     console.log(err,msg)
+    // })
+    // ftp.STOR("package.json",(err,msg)=>{
+    //     console.log(err,msg);
+    // })
     ftp.QUIT((err,msg)=>{
         console.log(err,msg);
     })

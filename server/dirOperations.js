@@ -67,10 +67,11 @@ try{
             connectedUser.pwd = args[0];
             ftpSocket.write("250 Requested file action okay, completed\r\n");
             return;
-      }else{
-            ftpSocket.write("550 Requested action not taken\r\n");
-            return;
       }
+
+      ftpSocket.write("550 Requested action not taken\r\n");
+      return;
+      
 }
 catch(err){
    console.log(err);

@@ -181,15 +181,6 @@ function handleData(data){
                 })
                 break;
             }
-            case "226":{
-                if(!isTransferCmd(queue[0])){
-                    queue[0].callback(null,{status:"226",message:this._statusMessage});
-                    queue.shift();
-                    if(queue.length){
-                        execNext(this.dataChannel,this._ControlChannel,this._passive,queue,this.localSite)
-                    }
-                }
-            }
             default:{
                 this.emit("others",{status:this._statusCode,message:this._statusMessage})
             }           
@@ -439,6 +430,10 @@ class FtpClient extends EventEmitter{
     AUTH(arg,callback){
         if(typeof arg != "string" || typeof callback != "function"){
             callback("ERROR in Type",null);
+            process.exit();
+        }
+        if(arg.toLowerCase() != 'tls'){
+            callback("ERROR in value "+arg,null);
             process.exit();
         }
         if(typeof this.secureOptions != "object"){

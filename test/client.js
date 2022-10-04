@@ -6,7 +6,7 @@ const ftp = new FtpClient();
 //Specify the available port for data-channel
 ftp.dataChannel.port = 3000;
 
-//For RETR
+//For Local folder 
 ftp.localSite = "E:\\nodefiles\\folder name\\";
 
 //For Authorization - optional for anonymous
@@ -24,21 +24,21 @@ ftp.on("connect",(code,msg)=>{
     ftp.PWD((err,pwd)=>{
         console.log(err,pwd);
     })
-    // ftp.PASV((err,msg)=>{
-    //     console.log(err,msg);
-    // })
-    // ftp.AUTH('tls',(err,msg)=>{
-    //     console.log(err,msg)
-    // })
-    ftp.NLST('./package.json',(err,msg)=>{
+    ftp.TYPE('I',(err,pwd)=>{
+        console.log(err,pwd);
+    })
+    ftp.AUTH('tls',(err,msg)=>{
         console.log(err,msg)
     })
-    // ftp.LIST('./package.json',(err,msg)=>{
-    //     console.log(err,msg)
-    // })
-    // ftp.STOR("package.json",(err,msg)=>{
-    //     console.log(err,msg);
-    // })
+    ftp.PASV((err,msg)=>{
+        console.log(err,msg)
+    })
+    ftp.CWD('E:\\nodefiles',(err,msg)=>{
+        console.log(err,msg)
+    })
+    ftp.STOR("./package-lock.json",(err,msg)=>{
+        console.log(err,msg);
+    })
     ftp.QUIT((err,msg)=>{
         console.log(err,msg);
     })

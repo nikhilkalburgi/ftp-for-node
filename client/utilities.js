@@ -79,11 +79,7 @@ function execNext(dataChannel,channel,passive,queue,localSite){
 }
 
 function connectPassive(dataChannel,channel,passive,queue,localSite){
-    let medium = net.createConnection;
-    if(queue[0].auth.value){
-        medium = tls.connect;
-    }
-    let client = medium({port:passive.port,host:passive.address,rejectUnauthorized:false},()=>{
+    let client = net.createConnection({port:passive.port,host:passive.address,rejectUnauthorized:false},()=>{
         if(queue[0].keyword != "LIST" && queue[0].keyword != "NLST"){
             if(queue[0].keyword == "RETR")
                 queue[0].callback(null,client);
@@ -98,9 +94,12 @@ function connectPassive(dataChannel,channel,passive,queue,localSite){
         }
         client.setEncoding("utf8");
         client.on("data",(data)=>{
-            let body = data.toString().split("\n");
-            body.pop();
-            queue[0].callback(null,{status:"150",body:body})          
+            if(queue[0].keyword == "LIST" || queue[0].keyword == "NLST"){
+
+                let body = data.toString().split("\n");
+                body.pop();
+                queue[0].callback(null,{status:"150",body:body})          
+            }
         })
         
     })

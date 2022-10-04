@@ -3,6 +3,7 @@ const net = require("net");
 const tls = require("tls");
 const path = require("path");
 const d = new Date();
+let dataServer;
 function connectToClient(ftpSocket,address,port,content,passive,passiveDetails,type,retr=false,makeItActive,auth,secureOptions){
     try{
         if(!content){
@@ -17,17 +18,22 @@ function connectToClient(ftpSocket,address,port,content,passive,passiveDetails,t
         }
         if(passive){
             if(passiveDetails.active){
+                if(dataServer)dataServer.close();
                 if(auth){
-                    const dataServer = tls.createServer(secureOptions,(sock)=>{
+                    dataServer = tls.createServer({...secureOptions,rejectUnauthorized:false});
+                    dataServer.on("connection",(sock)=>{
                         handleSocket(sock,dataServer)
-                    });
+                    })
                     dataServer.on("error",(err)=>{
                         console.log(err);
                         ftpSocket.write("425 Can't open data connection\r\n");
                     })
                     dataServer.listen(passiveDetails.port);
+                    dataServer.on("listening",()=>{
+                        ftpSocket.write("150 File status okay; about to open data connection.\r\n");
+                    })
                 }else{
-                    const dataServer = net.createServer((sock)=>{
+                    dataServer = net.createServer((sock)=>{
                         handleSocket(sock,dataServer)
                     })
                     dataServer.on("error",(err)=>{
@@ -35,6 +41,9 @@ function connectToClient(ftpSocket,address,port,content,passive,passiveDetails,t
                         ftpSocket.write("425 Can't open data connection\r\n");
                     })
                     dataServer.listen(passiveDetails.port);
+                    dataServer.on("listening",()=>{
+                        ftpSocket.write("150 File status okay; about to open data connection.\r\n");
+                    })
                 }
                 function handleSocket(sock,dataServer){
                     sock.setEncoding((type == 'A')?"utf8":null);
@@ -55,28 +64,28 @@ function connectToClient(ftpSocket,address,port,content,passive,passiveDetails,t
                 ftpSocket.write("421 Service not available\r\n")
             }
         }else{
-            let medium = null;
-            if(auth){
-                medium = tls.connect;
-            }else{
-                medium = net.createConnection;
-            }
-                let socket = medium({port:port,host:address,rejectUnauthorized:false},()=>{
-                console.log(`Connected to ${address}:${port}`);
-                if(retr){
-                    content.pipe(socket);
-                }else{
-                    socket.pipe(content);
-                }
-                ftpSocket.write("226 Closing data connection\r\n");
-    
-            })
-            socket.on("error",(err)=>{
-                console.log(err);
-                ftpSocket.write("425 Can't open data connection\r\n");
-            })
-            socket.setEncoding((type == 'A')?"utf8":null);
-            ftpSocket.write("150 File status okay; about to open data connection.\r\n");
+            ftpSocket.write("150 File status okay; about to open data connection.\r\n",()=>{
+                let medium = net;
+                if(auth)medium = tls;
+                let socket = medium.connect({port:port,host:address,rejectUnauthorized:false})
+                socket.on('connect',()=>{
+                    console.log(`Connected to ${address}:${port}`);
+                    if(retr){
+                        content.pipe(socket);
+                    }else{
+                        socket.pipe(content);
+                    }
+                    ftpSocket.write("226 Closing data connection\r\n");
+        
+                })
+                socket.on("error",(err)=>{
+                     console.log(err);
+                     ftpSocket.write("425 Can't open data connection\r\n");
+                 })
+                socket.setEncoding((type == 'A')?"utf8":null);
+               
+            });
+
         }
     }
     catch(err){

@@ -1,8 +1,9 @@
 # Ftp-For-Node
-### A basic Ftp client and server for nodejs that helps to make the transfer of files easier.
+
+#### A basic Ftp and Explicit FTPS client and server for nodejs that helps to make the transfer of files easier.
 
 ## To Install
-`npm install --save ftp-for-node`
+`  npm install --save ftp-for-node  `
 
 
 
@@ -62,7 +63,7 @@ const server = new FtpServer();
 server.defaultPWD = "E:/nodefiles";
 
 //Array of users who can access - authorized use
-server.userDetails = [{name:"abc",password:"123",pwd:"E:\\nodefiles"}];
+server.userDetails = [{name:"abc",password:"123",pwd:"pathname to the folder"}];
 
 //Init
 server.initiateFtpServer();
@@ -71,16 +72,42 @@ server.initiateFtpServer();
 
 ### Client Features
 
+The client supports properties like :
+1. ftp.dataChannel.port = "number";
+    Specify the available port for data-channel
+
+2. ftp.localSite = "absolute pathname";
+    For  loacl file reference
+
+For Authorization - optional for anonymous
+3. ftp.user = "string";
+4. ftp.password = "string";
+
+For AUTH
+5. ftp.secureOptions.key = fs.readFileSync('key.pem');
+6. ftp.secureOptions.cert = fs.readFileSync('cert.pem');
+
+Control Channel port and address
+7. port = "number"
+8. address = "string"
+
+
+#### How to Use the methods ?
+    Format :
+        FtpClient.method([arg],calback:function(err,msg))
+
+The client supports methods like :
+
 #### PORT("h1,h2,h3,h4,h5,p1,p2",callback(err,msg))
     To send the port number of data-channel for active mode.
 
 #### PASV(callback(err,msg))  
     Convert to passive mode
 
-#### LIST([pathanme|null],callback(err,msg))
+#### LIST([pathname|null],callback(err,msg))
     To list the files in PWD
 
-#### NSLT([pathanme|null],callback(err,msg))
+#### NSLT([pathname|null],callback(err,msg))
     To list the file name in PWD
 
 #### STOR(pathanme,callback(err,msg))
@@ -119,18 +146,30 @@ server.initiateFtpServer();
 #### QUIT(callback(err,msg))
     Close Control Channel
 
+#### AUTH('tls',callback(err,msg))
+    Explicit Security using TLS
 
 
 ## Server Features
 
-**PROPS**
+The client supports properties like :
 
-1. userDetails = [{name:[string],password:[string],pwd:[string]}...]
+The authorized user details - Optional
+1. userDetails = [{name:[string] , password:[string] , pwd:[string] }...]
+
+The local connection details for control channel
 2. localPort = [number] | default : 21
 3. localAddress = [string] | default : localhost
-4. passive = this.passive = {active : [boolean] | true,address : [string] | "127.0.0.1",port : [number] | 40000}
 
+Passive connection details
+4. passive = { active : [boolean] | true , address : [string] | "127.0.0.1" , port : [number] | default : 40000 }
+
+For AUTH
+5. ftp.secureOptions.key = fs.readFileSync('key.pem');
+6. ftp.secureOptions.cert = fs.readFileSync('cert.pem');
+
+8. defaultPWD - for anonymous users
 
 **TO INIT**
-#### initiateFtpServer()()
+#### initiateFtpServer()
 

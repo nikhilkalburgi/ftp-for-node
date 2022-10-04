@@ -1,7 +1,7 @@
 const net = require("net");
 const tls = require("tls");
 const fs = require("fs");
-let dataServer = null;
+let dataServer = null,toggle = true;
 
 files = {}
 
@@ -21,26 +21,31 @@ function connectToClient(ftpSocket,address,port,content,passive,passiveDetails,t
         content = content.join("\n") + '\n';
      }
      if(type == 'I'){
-        content = Buffer.from(content,'ascii');
-     }
-     if(!address && !port && !passive){
-        console.error("Address or port in not correct.");
-        ftpSocket.write("502 Command not implemented\r\n");
-        return;
-     }
+         content = Buffer.from(content,'ascii');
+        }
+        if(!address && !port && !passive){
+            console.error("Address or port in not correct.");
+            ftpSocket.write("502 Command not implemented\r\n");
+            return;
+        }
      if(passive){
          if(passiveDetails.active){
              if(dataServer)dataServer.close();
              if(auth){
-                 dataServer = tls.createServer(secureOptions,(sock)=>{
-                     handleSocket(sock,dataServer)
-                });
+                 dataServer = tls.createServer({...secureOptions,rejectUnauthorized:false});
+                dataServer.on('connection',(sock)=>{
+                    handleSocket(sock,dataServer)
+               })
+               
                  dataServer.on("error",(err)=>{
                     console.log(err);
                     ftpSocket.write("425 Can't open data connection\r\n");
                 })
                 
                 dataServer.listen(passiveDetails.port);
+                dataServer.on("listening",()=>{
+                    ftpSocket.write("150 File status okay; about to open data connection.\r\n");
+                })
             }else{
                     
                 dataServer = net.createServer((sock)=>{
@@ -51,6 +56,9 @@ function connectToClient(ftpSocket,address,port,content,passive,passiveDetails,t
                         ftpSocket.write("425 Can't open data connection\r\n");
                     })
                     dataServer.listen(passiveDetails.port);
+                    dataServer.on("listening",()=>{
+                        ftpSocket.write("150 File status okay; about to open data connection.\r\n");
+                    })
                 }
                 function handleSocket(sock,dataServer){
                     makeItActive();
@@ -68,25 +76,23 @@ function connectToClient(ftpSocket,address,port,content,passive,passiveDetails,t
                 ftpSocket.write("421 Service not available\r\n")
             }
         }else{
-            let medium = null;
-            if(auth){
-                medium = tls.connect;
-            }else{
-                medium = net.createConnection;
-            }
-            let socket = medium({port:port,host:address,rejectUnauthorized:false},()=>{
-                console.log(`Connected to ${address}:${port}`);
-                socket.write(content);
-                ftpSocket.write("226 Closing data connection\r\n");
-                socket.end();
-                
-            })
-            socket.on("error",(err)=>{
-                console.log(err);
-                ftpSocket.write("425 Can't open data connection\r\n");
-            })
+            ftpSocket.write("150 File status okay; about to open data connection.\r\n",()=>{
+                let medium = net;
+                if(auth)medium = tls;
+                let socket = medium.connect({port:port,host:address,rejectUnauthorized:false})
+                socket.on("connect",()=>{
+   
+                        console.log(`Connected to ${address}:${port}`);
+                        socket.write(content);
+                        ftpSocket.write("226 Closing data connection\r\n");
+                        socket.end();
+                })
+                socket.on("error",(err)=>{
+                    console.log(err);
+                    ftpSocket.write("425 Can't open data connection\r\n");
+                })
+            });
         }
-        ftpSocket.write("150 File status okay; about to open data connection.\r\n");
     }
     catch(err){
         console.log(err);

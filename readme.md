@@ -1,6 +1,6 @@
 # Ftp-For-Node
 
-#### A basic Ftp and Explicit FTPS client and server for nodejs that helps to make the transfer of files easier.
+A basic Ftp and Explicit FTPS client and server for nodejs that helps to make the transfer of files easier.
 
 ## To Install
 `  npm install --save ftp-for-node  `
@@ -73,21 +73,27 @@ server.initiateFtpServer();
 ### Client Features
 
 The client supports properties like :
-1. ftp.dataChannel.port = "number";
-    Specify the available port for data-channel
+
+Specify the available port for data-channel
+
+1. ftp.dataChannel.port = "number"
+    
+For  local file reference
 
 2. ftp.localSite = "absolute pathname";
-    For  loacl file reference
-
+    
 For Authorization - optional for anonymous
+
 3. ftp.user = "string";
 4. ftp.password = "string";
 
 For AUTH
+
 5. ftp.secureOptions.key = fs.readFileSync('key.pem');
 6. ftp.secureOptions.cert = fs.readFileSync('cert.pem');
 
 Control Channel port and address
+
 7. port = "number"
 8. address = "string"
 
@@ -110,25 +116,25 @@ The client supports methods like :
 #### NSLT([pathname|null],callback(err,msg))
     To list the file name in PWD
 
-#### STOR(pathanme,callback(err,msg))
+#### STOR(pathname,callback(err,msg))
     To Store the local files in server
 
-#### RETR(pathanme,callback(err,msg))
+#### RETR(pathname,callback(err,msg))
     To retrieve files from server
 
-#### APPE(pathanme,callback(err,msg))
+#### APPE(pathname,callback(err,msg))
     To Append the local files in server
 
-#### STOU(pathanme,callback(err,msg))
+#### STOU(pathname,callback(err,msg))
     To Store with unique name the local files in server
 
-#### RMD(pathanme,callback(err,msg))
+#### RMD(pathname,callback(err,msg))
     Remove folder
 
-#### MKD(pathanme,callback(err,msg))
+#### MKD(pathname,callback(err,msg))
     Make folder
 
-#### CWD(pathanme,callback(err,msg))
+#### CWD(pathname,callback(err,msg))
     Change wprking directory
 
 #### PWD(callback(err,msg))
@@ -155,20 +161,26 @@ The client supports methods like :
 The client supports properties like :
 
 The authorized user details - Optional
-1. userDetails = [{name:[string] , password:[string] , pwd:[string] }...]
+
+1. userDetails = [{name:"string" , password:"string" , pwd:[string] }...]
 
 The local connection details for control channel
-2. localPort = [number] | default : 21
-3. localAddress = [string] | default : localhost
+
+2. localPort = "number" | default : 21
+3. localAddress = "string" | default : localhost
 
 Passive connection details
-4. passive = { active : [boolean] | true , address : [string] | "127.0.0.1" , port : [number] | default : 40000 }
+
+4. passive = { active : "boolean" | default : true , address : "string" | default : "127.0.0.1" , port : "number" | default : 40000 }
 
 For AUTH
+
 5. ftp.secureOptions.key = fs.readFileSync('key.pem');
 6. ftp.secureOptions.cert = fs.readFileSync('cert.pem');
 
-8. defaultPWD - for anonymous users
+For anonymous users - mandatory
+
+7. defaultPWD = "string"
 
 **TO INIT**
 #### initiateFtpServer()

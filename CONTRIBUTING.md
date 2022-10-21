@@ -7,4 +7,5 @@ If I found it compatible and enhancing the project, I will surely merge it
 
 1. Fork the project
 2. Create a new branch and switch to that branch
-3. Make a PR
+3. Make your changes
+4. Make a PR

@@ -273,9 +273,6 @@ For anonymous users - mandatory
 7. defaultPWD = "string"
 
 **TO INIT**
-
-#### initiateFtpServer()
-
 ```
-
+ initiateFtpServer()
 ```

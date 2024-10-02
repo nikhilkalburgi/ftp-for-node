@@ -253,12 +253,13 @@ Below is an overview of the main methods available in the **FtpClient** class:
 
 ---
 
+
 ## ⚙️ **How to Use Methods**
 
-All methods follow the general pattern below, with optional parameters passed in brackets `[ ]`:
+All methods follow the general pattern below:
 
 ```javascript
-FtpClient.method([arg], callback: function(err, msg))
+FtpClient.method(arg, callback: function(err, msg))
 ```
 
 For example, to retrieve a file from the server:

@@ -19,7 +19,6 @@ _A basic FTP and Explicit FTPS client and server for Node.js, designed to simpli
    - [Server Features](#server-features)
 4. [Methods Overview](#methods-overview)
 5. [How to Use Methods](#how-to-use-methods)
-6. [License](#license)
 
 ---
 
@@ -29,8 +28,6 @@ _A basic FTP and Explicit FTPS client and server for Node.js, designed to simpli
 
 Make sure you have Node.js (v12.0.0 or higher) installed on your machine. Follow the steps below to install Node.js.
 
-### Windows / macOS / Linux.
-
 1. Go to the Node.js official website.
 2. Download the LTS version, which is recommended for most users.
 3. Run the installer and follow the setup wizard instructions.
@@ -39,9 +36,10 @@ Make sure you have Node.js (v12.0.0 or higher) installed on your machine. Follow
 
 ### Verify Installation
 
+Run the below code in terminal
+
 ```sh
-bash
-node -v
+$ node -v
 ```
 
 This command should return the version number of Node.js installed on your system, and it should be 12.0.0 or higher.
@@ -49,8 +47,7 @@ This command should return the version number of Node.js installed on your syste
 #### To check if npm (Node Package Manager) is installed alongside Node.js, run:
 
 ```sh
-bash
-npm -v
+$ npm -v
 ```
 
 This will display the version number of npm, which is required to install packages like Ftp-For-Node.
@@ -59,17 +56,15 @@ This will display the version number of npm, which is required to install packag
 
 You can install the package using npm:
 
-```bash
-npm install --save ftp-for-node
+```sh
+$ npm install --save ftp-for-node
 ```
 
 Make sure your project is set up with Node.js (v12.0.0 or higher).
 
-# _You can find the package on npmjs.com here:_
+You can find the package on npmjs.com here:
 
 https://www.npmjs.com/package/ftp-for-node
-
----
 
 ## 📚 **Usage**
 
@@ -144,135 +139,137 @@ server.initiateFtpServer();
 
 ---
 
-### Client Features
+## ✨ **Features**
 
-The client supports properties like :
+### **Client Features**
 
-Specify the available port for data-channel
+The FTP client provides several customizable features:
 
-1. ftp.dataChannel.port = "number"
+1. **Data Channel Port**  
+   Configure the port for the data channel (required for active mode):
 
-For local file reference
+   ```javascript
+   ftp.dataChannel.port = 3000;
+   ```
 
-2. ftp.localSite = "absolute pathname";
+2. **Local File Reference**  
+   Specify the local path for retrieving or storing files:
 
-For Authorization - optional for anonymous
+   ```javascript
+   ftp.localSite = "absolute_pathname";
+   ```
 
-3. ftp.user = "string";
-4. ftp.password = "string";
+3. **Authorization**  
+   You can provide credentials if the server doesn’t support anonymous access:
 
-For AUTH
+   ```javascript
+   ftp.user = "abc";
+   ftp.password = "123";
+   ```
 
-5. ftp.secureOptions.key = fs.readFileSync('key.pem');
-6. ftp.secureOptions.cert = fs.readFileSync('cert.pem');
+4. **Secure Connection (TLS/SSL)**  
+   For secure FTP connections, provide key and certificate files:
 
-Control Channel port and address
+   ```javascript
+   ftp.secureOptions.key = fs.readFileSync("key.pem");
+   ftp.secureOptions.cert = fs.readFileSync("cert.pem");
+   ```
 
-7. port = "number"
-8. address = "string"
+5. **Control Channel Port and Address**  
+   Customize the port and address for the control channel:
+   ```javascript
+   ftp.port = 21; // Default FTP port
+   ftp.address = "localhost"; // Default address
+   ```
 
-#### How to Use the methods ?
+---
 
-    Format :
-        FtpClient.method([arg],calback:function(err,msg))
+### **Server Features**
 
-The client supports methods like :
+The FTP server includes several configuration options:
 
-#### PORT("h1,h2,h3,h4,h5,p1,p2",callback(err,msg))
+1. **Authorized User Details**  
+   Define a list of users with access to the server:
 
-    To send the port number of data-channel for active mode.
+   ```javascript
+   server.userDetails = [
+     { name: "abc", password: "123", pwd: "path_to_folder" },
+   ];
+   ```
 
-#### PASV(callback(err,msg))
+2. **Local Connection Details**  
+   Customize the control channel’s port and address:
 
-    Convert to passive mode
+   ```javascript
+   server.localPort = 21; // Default: 21
+   server.localAddress = "localhost"; // Default: localhost
+   ```
 
-#### LIST([pathname|null],callback(err,msg))
+3. **Passive Connection Settings**  
+   Configure the FTP server to support passive mode:
 
-    To list the files in PWD
+   ```javascript
+   server.passive = {
+     active: true, // Enable passive mode
+     address: "127.0.0.1",
+     port: 40000, // Starting port for passive data connections
+   };
+   ```
 
-#### NSLT([pathname|null],callback(err,msg))
+4. **Anonymous Access**  
+   Allow anonymous users to connect with restricted access:
 
-    To list the file name in PWD
+   ```javascript
+   server.defaultPWD = "path_to_anonymous_folder";
+   ```
 
-#### STOR(pathname,callback(err,msg))
+5. **Secure Server (TLS)**  
+   Add TLS/SSL support for secure FTP connections:
+   ```javascript
+   server.secureOptions.key = fs.readFileSync("key.pem");
+   server.secureOptions.cert = fs.readFileSync("cert.pem");
+   ```
 
-    To Store the local files in server
+---
 
-#### RETR(pathname,callback(err,msg))
+## 📜 **Methods Overview**
 
-    To retrieve files from server
+Below is an overview of the main methods available in the **FtpClient** class:
 
-#### APPE(pathname,callback(err,msg))
+| Method                                   | Description                                    |
+| ---------------------------------------- | ---------------------------------------------- |
+| `PORT("h1,h2,h3,h4,h5,p1,p2", callback)` | Send the port number for active mode.          |
+| `PASV(callback)`                         | Convert to passive mode.                       |
+| `LIST([pathname], callback)`             | List files in the current directory.           |
+| `RETR(pathname, callback)`               | Retrieve files from the server.                |
+| `STOR(pathname, callback)`               | Store local files on the server.               |
+| `APPE(pathname, callback)`               | Append data to an existing file on the server. |
+| `MKD(pathname, callback)`                | Create a new directory on the server.          |
+| `RMD(pathname, callback)`                | Remove a directory on the server.              |
+| `PWD(callback)`                          | Get the current working directory.             |
+| `CWD(pathname, callback)`                | Change the working directory.                  |
+| `QUIT(callback)`                         | Close the control connection.                  |
+| `AUTH('tls', callback)`                  | Enable explicit security using TLS.            |
 
-    To Append the local files in server
+---
 
-#### STOU(pathname,callback(err,msg))
 
-    To Store with unique name the local files in server
+## ⚙️ **How to Use Methods**
 
-#### RMD(pathname,callback(err,msg))
+All methods follow the general pattern below:
 
-    Remove folder
-
-#### MKD(pathname,callback(err,msg))
-
-    Make folder
-
-#### CWD(pathname,callback(err,msg))
-
-    Change wprking directory
-
-#### PWD(callback(err,msg))
-
-    Return present directory name
-
-#### TYPE(["I"|"A"],callback(err,msg))
-
-    Change Type
-
-#### SYST(callback(err,msg))
-
-    Return System info
-
-#### STAT([string|null],callback(err,msg))
-
-    Return Current State
-
-#### QUIT(callback(err,msg))
-
-    Close Control Channel
-
-#### AUTH('tls',callback(err,msg))
-
-    Explicit Security using TLS
-
-## Server Features
-
-The client supports properties like :
-
-The authorized user details - Optional
-
-1. userDetails = [{name:"string" , password:"string" , pwd:[string] }...]
-
-The local connection details for control channel
-
-2. localPort = "number" | default : 21
-3. localAddress = "string" | default : localhost
-
-Passive connection details
-
-4. passive = { active : "boolean" | default : true , address : "string" | default : "127.0.0.1" , port : "number" | default : 40000 }
-
-For AUTH
-
-5. ftp.secureOptions.key = fs.readFileSync('key.pem');
-6. ftp.secureOptions.cert = fs.readFileSync('cert.pem');
-
-For anonymous users - mandatory
-
-7. defaultPWD = "string"
-
-**TO INIT**
+```javascript
+FtpClient.method(arg, callback: function(err, msg))
 ```
- initiateFtpServer()
+
+For example, to retrieve a file from the server:
+
+```javascript
+ftp.RETR("path/to/file", (err, msg) => {
+  if (err) {
+    console.error("Error retrieving file:", err);
+  } else {
+    console.log("File retrieved successfully:", msg);
+  }
+});
 ```
